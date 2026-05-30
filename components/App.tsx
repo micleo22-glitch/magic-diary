@@ -102,7 +102,7 @@ export function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#1A0A06' }}>
+    <div className="flex overflow-hidden" style={{ background: '#1A0A06', height: '100dvh' }}>
 
       {/* ===== DESKTOP: Left sidebar ===== */}
       <div
