@@ -3,8 +3,8 @@
 import { MOOD_DATA } from '@/types/entry'
 
 interface MoodPickerProps {
-  value: number | null
-  onChange: (v: number | null) => void
+  value: 1 | 2 | 3 | 4 | 5 | null
+  onChange: (v: 1 | 2 | 3 | 4 | 5 | null) => void
 }
 
 // Krótsze etykiety żeby mieściły się w flex-1 bez truncate
@@ -24,7 +24,7 @@ export function MoodPicker({ value, onChange }: MoodPickerProps) {
         return (
           <button
             key={m.value}
-            onClick={() => onChange(selected ? null : m.value)}
+            onClick={() => onChange(selected ? null : m.value as 1 | 2 | 3 | 4 | 5)}
             title={m.label}
             className={[
               'flex-1 flex flex-col items-center gap-1 py-2',

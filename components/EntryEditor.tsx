@@ -66,7 +66,7 @@ function TBtn({ onClick, active, title, disabled, children }: TBtnProps) {
 
 export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
   const [title, setTitle] = useState(entry?.title ?? '')
-  const [mood, setMood] = useState<number | null>(entry?.mood ?? null)
+  const [mood, setMood] = useState<1 | 2 | 3 | 4 | 5 | null>(entry?.mood ?? null)
   const [date, setDate] = useState(entry?.date ?? new Date().toISOString().split('T')[0])
   const [saving, setSaving] = useState(false)
 
