@@ -31,8 +31,8 @@ export function Sidebar({ entries, selectedEntryId, onSelectEntry, onNewEntry }:
       className="flex flex-col h-full"
       style={{ background: 'linear-gradient(180deg, #2C0F0A 0%, #220B08 100%)' }}
     >
-      {/* Logo area */}
-      <div className="flex flex-col items-center pt-6 pb-4 border-b border-[rgba(201,169,110,0.1)]">
+      {/* Logo */}
+      <div className="flex flex-col items-center pt-6 pb-5 border-b border-[rgba(201,169,110,0.12)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/logo.png"
@@ -49,20 +49,20 @@ export function Sidebar({ entries, selectedEntryId, onSelectEntry, onNewEntry }:
         </span>
       </div>
 
-      {/* New entry button */}
-      <div className="px-3 pt-3 pb-2">
+      {/* Nowy Wpis — złoty button */}
+      <div className="px-4 pt-5 pb-4">
         <button
           onClick={onNewEntry}
-          style={{ fontFamily: "'Cinzel', serif", fontSize: 11 }}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#C9993F]/18 border border-[#C9993F]/28 rounded-xl text-[#C9993F] hover:bg-[#C9993F]/28 transition-all uppercase tracking-widest"
+          style={{ fontFamily: "'Lora', Georgia, serif", fontSize: 14, fontWeight: 500 }}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-[#C9993F] rounded-xl text-white hover:bg-[#D4A84A] active:scale-[0.98] transition-all shadow-md"
         >
-          <Feather size={13} />
+          <Feather size={15} />
           Nowy Wpis
         </button>
       </div>
 
       {/* Search */}
-      <div className="px-3 pb-2">
+      <div className="px-4 pb-5">
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7A5C42]" />
           <input
@@ -70,18 +70,19 @@ export function Sidebar({ entries, selectedEntryId, onSelectEntry, onNewEntry }:
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Szukaj..."
-            style={{ fontFamily: "'Lora', serif", fontSize: 12, background: 'rgba(255,255,255,0.04)' }}
-            className="w-full pl-8 pr-3 py-2 rounded-xl border border-[rgba(201,169,110,0.15)] text-[#D4A96A] placeholder:text-[#7A5C42]/60 outline-none focus:border-[#C9993F]/40 transition-colors"
+            style={{ fontFamily: "'Lora', serif", fontSize: 13, background: 'rgba(255,255,255,0.04)' }}
+            className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-[rgba(201,169,110,0.15)] text-[#D4A96A] placeholder:text-[#7A5C42]/60 outline-none focus:border-[#C9993F]/40 transition-colors"
           />
         </div>
       </div>
 
-      {/* Section label */}
-      <div className="px-4 pb-1">
-        <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#7A5C42' }}
-          className="uppercase tracking-widest">
+      {/* Separator + "Spis Wspomnień" wyśrodkowany jak Magic Diary */}
+      <div className="border-t border-[rgba(201,169,110,0.12)] pt-4 pb-2 px-4 text-center">
+        <span
+          style={{ fontFamily: "'IM Fell English SC', serif", color: '#C9993F', fontSize: 15, letterSpacing: '0.08em' }}
+        >
           Spis Wspomnień
-        </p>
+        </span>
       </div>
 
       {/* Entries scroll */}
@@ -92,7 +93,7 @@ export function Sidebar({ entries, selectedEntryId, onSelectEntry, onNewEntry }:
             {q ? 'Brak wyników.' : 'Brak wpisów.'}
           </p>
         ) : (
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5 mt-1">
             {filtered.map(entry => {
               const sel = selectedEntryId === entry.id
               return (
@@ -109,7 +110,7 @@ export function Sidebar({ entries, selectedEntryId, onSelectEntry, onNewEntry }:
                   <div className="flex items-start justify-between gap-1">
                     <div className="min-w-0 flex-1">
                       <p style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: '#9A7A5A' }}
-                        className="uppercase tracking-wider mb-0.5">
+                        className="mb-0.5">
                         {fmtShort(entry.date)}
                       </p>
                       <p style={{ fontFamily: "'Playfair Display', serif" }}
