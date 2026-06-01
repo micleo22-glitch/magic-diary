@@ -44,7 +44,10 @@ export function App() {
   const selectedEntry = selectedId ? entries.find(e => e.id === selectedId) ?? null : null
 
   // === Handlers ===
-  const handleSplashDone = () => { reload(); setView(session ? 'entries' : 'new') }
+  const handleSplashDone = () => {
+    if (session) { reload(); setView('entries') }
+    else setView('entries') // session null → falls through to <AuthScreen />
+  }
 
   const handleSaved = (entry: Entry) => {
     reload(); setSelectedId(entry.id); setView('view')
@@ -73,7 +76,16 @@ export function App() {
   // Still resolving session
   if (session === undefined) return null
 
-  // Not logged in
+  // Show splash first on every load — auth check happens after
+  if (view === 'splash') {
+    return (
+      <AnimatePresence>
+        <SplashScreen onDone={handleSplashDone} />
+      </AnimatePresence>
+    )
+  }
+
+  // After splash: not logged in → auth screen
   if (!session) return <AuthScreen />
 
   // === Right panel content (desktop always; mobile for non-list views) ===
@@ -117,15 +129,6 @@ export function App() {
           Wybierz wpis z listy lub utwórz nowy
         </p>
       </div>
-    )
-  }
-
-  // === Splash ===
-  if (view === 'splash') {
-    return (
-      <AnimatePresence>
-        <SplashScreen onDone={handleSplashDone} />
-      </AnimatePresence>
     )
   }
 
