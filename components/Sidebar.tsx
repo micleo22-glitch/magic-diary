@@ -28,8 +28,7 @@ export function Sidebar({ entries, selectedEntryId, onSelectEntry, onNewEntry }:
 
   return (
     <div
-      className="flex flex-col h-full"
-      style={{ background: 'linear-gradient(180deg, #2C0F0A 0%, #220B08 100%)' }}
+      className="flex flex-col h-full leather-bg"
     >
       {/* Logo */}
       <div className="flex flex-col items-center pt-6 pb-5 border-b border-[rgba(201,169,110,0.12)]">

@@ -1,8 +1,7 @@
 @echo off
 cd /d "%~dp0"
-git add -A
-git commit -m "fix: mobile bottom nav visibility (dvh + safe-area-inset)"
+git add components/Sidebar.tsx
+git commit -m "feat: desktop sidebar - gold button, spacing, Spis Wspomnien header"
 git push
-echo.
 echo Done!
 pause

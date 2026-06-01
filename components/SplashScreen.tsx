@@ -24,8 +24,7 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
 
   return (
     <motion.div
-      className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden"
-      style={{ background: 'radial-gradient(ellipse at center, #3D1008 0%, #1A0A06 65%)' }}
+      className="leather-bg fixed inset-0 flex flex-col items-center justify-center overflow-hidden"
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}

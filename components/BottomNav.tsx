@@ -14,11 +14,8 @@ export function BottomNav({ activeView, onNewEntry, onEntries }: BottomNavProps)
 
   return (
     <nav
-      className="flex items-center justify-around px-2 pt-2 border-t border-[rgba(201,169,110,0.12)]"
-      style={{
-        background: '#2C0F0A',
-        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-      }}
+      className="leather-bg flex items-center justify-around px-2 pt-2 border-t border-[rgba(201,169,110,0.15)]"
+      style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
     >
       <NavBtn icon={<Feather size={22} />} label="Nowy Wpis" active={isEditor} onClick={onNewEntry} />
       <NavBtn icon={<BookOpen size={22} />} label="Wspomnienia" active={isList} onClick={onEntries} />
