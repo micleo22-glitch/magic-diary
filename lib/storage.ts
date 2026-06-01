@@ -1,57 +1,90 @@
+import { supabase } from './supabase'
 import { Entry } from '@/types/entry'
-
-const ENTRIES_KEY = 'magic-diary:entries'
 
 function genId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
-export function getEntries(): Entry[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const data = localStorage.getItem(ENTRIES_KEY)
-    return data ? (JSON.parse(data) as Entry[]) : []
-  } catch {
-    return []
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToEntry(row: any): Entry {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    mood: row.mood,
+    date: row.date,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   }
 }
 
-export function saveEntries(entries: Entry[]): void {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(ENTRIES_KEY, JSON.stringify(entries))
+export async function getEntries(): Promise<Entry[]> {
+  const { data, error } = await supabase
+    .from('entries')
+    .select('*')
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) { console.error(error); return [] }
+  return (data ?? []).map(rowToEntry)
 }
 
-export function createEntry(
+export async function createEntry(
   data: Omit<Entry, 'id' | 'createdAt' | 'updatedAt'>
-): Entry {
-  const entries = getEntries()
+): Promise<Entry> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
   const now = new Date().toISOString()
-  const entry: Entry = { ...data, id: genId(), createdAt: now, updatedAt: now }
-  saveEntries([entry, ...entries])
-  return entry
+  const row = {
+    id: genId(),
+    title: data.title,
+    content: data.content,
+    mood: data.mood,
+    date: data.date,
+    created_at: now,
+    updated_at: now,
+    user_id: user.id,
+  }
+  const { data: inserted, error } = await supabase
+    .from('entries')
+    .insert(row)
+    .select()
+    .single()
+  if (error) throw error
+  return rowToEntry(inserted)
 }
 
-export function updateEntry(
+export async function updateEntry(
   id: string,
   changes: Partial<Omit<Entry, 'id' | 'createdAt'>>
-): Entry | null {
-  const entries = getEntries()
-  const idx = entries.findIndex(e => e.id === id)
-  if (idx === -1) return null
-  const updated: Entry = {
-    ...entries[idx],
-    ...changes,
-    updatedAt: new Date().toISOString(),
-  }
-  entries[idx] = updated
-  saveEntries(entries)
-  return updated
+): Promise<Entry | null> {
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (changes.title !== undefined) patch.title = changes.title
+  if (changes.content !== undefined) patch.content = changes.content
+  if (changes.mood !== undefined) patch.mood = changes.mood
+  if (changes.date !== undefined) patch.date = changes.date
+
+  const { data, error } = await supabase
+    .from('entries')
+    .update(patch)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) { console.error(error); return null }
+  return rowToEntry(data)
 }
 
-export function deleteEntry(id: string): void {
-  saveEntries(getEntries().filter(e => e.id !== id))
+export async function deleteEntry(id: string): Promise<void> {
+  const { error } = await supabase.from('entries').delete().eq('id', id)
+  if (error) console.error(error)
 }
 
-export function getEntry(id: string): Entry | undefined {
-  return getEntries().find(e => e.id === id)
+export async function getEntry(id: string): Promise<Entry | undefined> {
+  const { data, error } = await supabase
+    .from('entries')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (error) return undefined
+  return rowToEntry(data)
 }

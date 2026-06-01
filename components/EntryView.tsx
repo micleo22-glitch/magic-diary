@@ -21,9 +21,9 @@ interface EntryViewProps {
 }
 
 export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm('Usunąć ten wpis? Tej operacji nie można cofnąć.')) {
-      deleteEntry(entry.id)
+      await deleteEntry(entry.id)
       onDelete()
     }
   }

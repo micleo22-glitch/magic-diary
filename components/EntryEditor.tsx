@@ -86,22 +86,23 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
     },
   })
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!editor) return
     const content = editor.getHTML()
     const text = editor.getText().trim()
     if (!text) return
     setSaving(true)
-    setTimeout(() => {
+    try {
       let saved: Entry | null
       if (entry) {
-        saved = updateEntry(entry.id, { title, content, mood, date })
+        saved = await updateEntry(entry.id, { title, content, mood, date })
       } else {
-        saved = createEntry({ title, content, mood, date })
+        saved = await createEntry({ title, content, mood, date })
       }
-      setSaving(false)
       if (saved) onSave(saved)
-    }, 300)
+    } finally {
+      setSaving(false)
+    }
   }, [editor, entry, title, mood, date, onSave])
 
   const canSave = editor ? editor.getText().trim().length > 0 : false
