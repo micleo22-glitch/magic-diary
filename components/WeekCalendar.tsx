@@ -1,5 +1,8 @@
 'use client'
 
+import { useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+
 const DAY_NAMES = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd']
 
 interface WeekCalendarProps {
@@ -8,13 +11,15 @@ interface WeekCalendarProps {
 }
 
 export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) {
+  const [weekOffset, setWeekOffset] = useState(0)
+
   const today = new Date()
   const todayIso = today.toISOString().split('T')[0]
 
   const dow = today.getDay()
   const diff = dow === 0 ? -6 : 1 - dow
   const monday = new Date(today)
-  monday.setDate(today.getDate() + diff)
+  monday.setDate(today.getDate() + diff + weekOffset * 7)
 
   const days = DAY_NAMES.map((name, i) => {
     const d = new Date(monday)
@@ -24,7 +29,16 @@ export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) 
   })
 
   return (
-    <div className="flex w-full gap-1 px-1">
+    <div className="flex items-center w-full gap-1 px-1">
+      {/* Strzałka wstecz */}
+      <button
+        onClick={() => setWeekOffset(o => o - 1)}
+        className="flex-shrink-0 p-1.5 rounded-lg text-[#7A5C42] hover:bg-[#C9993F]/15 hover:text-[#C9993F] transition-all"
+      >
+        <ChevronLeft size={16} />
+      </button>
+
+      {/* Dni tygodnia */}
       {days.map(day => (
         <button
           key={day.iso}
@@ -48,6 +62,14 @@ export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) 
           <span className="text-base font-bold leading-none">{day.num}</span>
         </button>
       ))}
+
+      {/* Strzałka do przodu */}
+      <button
+        onClick={() => setWeekOffset(o => o + 1)}
+        className="flex-shrink-0 p-1.5 rounded-lg text-[#7A5C42] hover:bg-[#C9993F]/15 hover:text-[#C9993F] transition-all"
+      >
+        <ChevronRight size={16} />
+      </button>
     </div>
   )
 }
