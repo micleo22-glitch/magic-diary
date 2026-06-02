@@ -184,3 +184,17 @@ html, body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Responsive background images */
+.app-bg {
+  background-image: url('/bg-pion.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+@media (min-width: 768px) {
+  .app-bg {
+    background-image: url('/bg-poziom.png');
+  }
+}
