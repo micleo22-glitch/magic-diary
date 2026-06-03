@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Search, BookOpen, Plus } from 'lucide-react'
+import { Search, BookOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Entry } from '@/types/entry'
 import { EntryCard } from './EntryCard'
 
 type Sort = 'newest' | 'oldest' | 'mood'
+
+const PL_MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
+  'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']
 
 interface EntriesListProps {
   entries: Entry[]
@@ -22,7 +25,24 @@ export function EntriesList({
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<Sort>('newest')
 
+  // Month navigation — default to current month
+  const now = new Date()
+  const [monthOffset, setMonthOffset] = useState(0) // 0 = current month, -1 = prev, etc.
+
+  const activeYear  = now.getFullYear() + Math.floor((now.getMonth() + monthOffset) / 12)
+  const activeMonth = ((now.getMonth() + monthOffset) % 12 + 12) % 12
+
+  // Months that have entries (for dot indicator)
+  const monthsWithEntries = useMemo(() => {
+    const set = new Set<string>()
+    entries.forEach(e => set.add(e.date.slice(0, 7)))
+    return set
+  }, [entries])
+
+  const activeKey = `${activeYear}-${String(activeMonth + 1).padStart(2, '0')}`
+
   const filtered = entries
+    .filter(e => e.date.startsWith(activeKey))
     .filter(e => !q || e.title.toLowerCase().includes(q.toLowerCase()) ||
       e.content.toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => {
@@ -44,6 +64,38 @@ export function EntriesList({
         <div className="flex justify-center mb-4">
           <div className="h-px w-28"
             style={{ background: 'linear-gradient(to right, transparent, rgba(201,153,63,0.5), transparent)' }} />
+        </div>
+
+        {/* Month navigator */}
+        <div className="flex items-center justify-between mb-4 px-1">
+          <button
+            onClick={() => setMonthOffset(o => o - 1)}
+            className="p-1.5 rounded-lg hover:bg-[rgba(201,153,63,0.12)] transition-colors"
+            style={{ color: '#7A5C42' }}
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          <div className="flex flex-col items-center gap-0.5">
+            <span style={{ fontFamily: "'IM Fell English SC', serif", fontSize: 18, color: '#C9993F', letterSpacing: '0.06em' }}>
+              {PL_MONTHS[activeMonth]}
+            </span>
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.1em' }}>
+              {activeYear}
+            </span>
+            {monthsWithEntries.has(activeKey) && (
+              <div className="w-1 h-1 rounded-full bg-[#C9993F] mt-0.5" />
+            )}
+          </div>
+
+          <button
+            onClick={() => setMonthOffset(o => o + 1)}
+            disabled={monthOffset >= 0}
+            className="p-1.5 rounded-lg hover:bg-[rgba(201,153,63,0.12)] transition-colors disabled:opacity-30 disabled:cursor-default"
+            style={{ color: '#7A5C42' }}
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
 
         {/* Search */}

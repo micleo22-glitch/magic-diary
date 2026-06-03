@@ -42,12 +42,10 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardPr
   return (
     <div
       onClick={onClick}
-      className={[
-        'relative p-4 rounded-2xl cursor-pointer transition-all duration-200 border',
-        isSelected
-          ? 'bg-[#C9993F]/14 border-[#C9993F]/50 border-l-[3px] border-l-[#C9993F]'
-          : 'bg-[#F5EDD8]/70 border-[rgba(201,169,110,0.18)] hover:bg-[#E8DCC0]/90 hover:border-l-[3px] hover:border-l-[#C9993F]/45',
-      ].join(' ')}
+      className="relative p-4 rounded-2xl cursor-pointer transition-all duration-200"
+      style={{
+        background: isSelected ? 'rgba(201,153,63,0.18)' : 'rgba(245,237,216,0.7)',
+      }}
     >
       <div className="flex gap-3 items-start">
         <div className="flex-1 min-w-0">

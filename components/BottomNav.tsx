@@ -4,11 +4,13 @@ import { Feather, BookOpen, Menu } from 'lucide-react'
 
 interface BottomNavProps {
   activeView: string
+  menuOpen: boolean
   onNewEntry: () => void
   onEntries: () => void
+  onMenu: () => void
 }
 
-export function BottomNav({ activeView, onNewEntry, onEntries }: BottomNavProps) {
+export function BottomNav({ activeView, menuOpen, onNewEntry, onEntries, onMenu }: BottomNavProps) {
   const isEditor = activeView === 'new' || activeView === 'edit'
   const isList = activeView === 'entries' || activeView === 'view'
 
@@ -22,7 +24,7 @@ export function BottomNav({ activeView, onNewEntry, onEntries }: BottomNavProps)
     >
       <NavBtn icon={<Feather size={22} />} label="Nowy Wpis" active={isEditor} onClick={onNewEntry} />
       <NavBtn icon={<BookOpen size={22} />} label="Wspomnienia" active={isList} onClick={onEntries} />
-      <NavBtn icon={<Menu size={22} />} label="Menu" active={false} onClick={() => {}} />
+      <NavBtn icon={<Menu size={22} />} label="Menu" active={menuOpen} onClick={onMenu} />
     </nav>
   )
 }

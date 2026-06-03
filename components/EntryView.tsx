@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
+import { AgentChat } from './AgentChat'
 
 function fmtFull(iso: string): string {
   const d = new Date(iso)
@@ -120,6 +121,8 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
           </svg>
         </div>
       </div>
+
+      <AgentChat entryTitle={entry.title} />
     </motion.div>
   )
 }
