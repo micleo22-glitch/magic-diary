@@ -49,9 +49,9 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
   }
 
   const toggleRecording = () => {
-    const SpeechRecognition =
-      (window as typeof window & { SpeechRecognition?: typeof window.SpeechRecognition; webkitSpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition ||
-      (window as typeof window & { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any
+    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition
 
     if (!SpeechRecognition) return
 
