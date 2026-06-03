@@ -162,6 +162,14 @@ html, body {
   font-family: 'Lora', Georgia, serif;
 }
 
+/* Toolbar horizontal scroll on mobile */
+.toolbar-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.toolbar-scroll::-webkit-scrollbar { display: none; }
+
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

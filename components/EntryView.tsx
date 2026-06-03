@@ -1,10 +1,12 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowLeft, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
 import { AgentChat } from './AgentChat'
+import { toast } from '@/lib/toast'
 
 function fmtFull(iso: string): string {
   const d = new Date(iso)
@@ -22,11 +24,14 @@ interface EntryViewProps {
 }
 
 export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
   const handleDelete = async () => {
-    if (confirm('Usunąć ten wpis? Tej operacji nie można cofnąć.')) {
-      await deleteEntry(entry.id)
-      onDelete()
-    }
+    setDeleting(true)
+    await deleteEntry(entry.id)
+    toast('Wpis usunięty', 'info')
+    onDelete()
   }
 
   return (
@@ -57,13 +62,53 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
             Edytuj
           </button>
           <button
-            onClick={handleDelete}
+            onClick={() => setConfirmDelete(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[#8B1A1A] border border-[#8B1A1A]/35 rounded-xl hover:bg-[#8B1A1A]/10 transition-all"
           >
             <Trash2 size={13} />
           </button>
         </div>
       </div>
+
+      {/* Delete confirmation bar */}
+      <AnimatePresence>
+        {confirmDelete && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden border-b border-[rgba(180,30,30,0.2)]"
+            style={{ background: 'rgba(180,30,30,0.07)' }}
+          >
+            <div className="flex items-center justify-between px-4 py-3 gap-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={14} style={{ color: '#E05555', flexShrink: 0 }} />
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: '#E05555', letterSpacing: '0.04em' }}>
+                  Usunąć ten wpis bezpowrotnie?
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.6)', letterSpacing: '0.06em' }}
+                  className="px-3 py-1.5 rounded-lg border border-[rgba(201,153,63,0.2)] hover:border-[rgba(201,153,63,0.4)] transition-colors"
+                >
+                  Anuluj
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  style={{ background: 'rgba(180,30,30,0.3)', color: '#E05555', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.06em' }}
+                  className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {deleting ? '...' : 'Usuń'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Content */}
       <div className="flex-1 max-w-2xl mx-auto w-full px-6 py-8">

@@ -1,15 +1,17 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Search, BookOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
-import { Entry } from '@/types/entry'
+import { Entry, MOOD_EMOJI } from '@/types/entry'
 import { EntryCard } from './EntryCard'
 
 type Sort = 'newest' | 'oldest' | 'mood'
 
 const PL_MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
   'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']
+
+const SORT_KEY = 'magic_diary_sort'
 
 interface EntriesListProps {
   entries: Entry[]
@@ -23,11 +25,21 @@ export function EntriesList({
   entries, selectedEntryId, onSelectEntry, onNewEntry, onEntryDeleted,
 }: EntriesListProps) {
   const [q, setQ] = useState('')
-  const [sort, setSort] = useState<Sort>('newest')
+  const [moodFilter, setMoodFilter] = useState<number | null>(null)
+  const [sort, setSort] = useState<Sort>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem(SORT_KEY) as Sort) || 'newest'
+    }
+    return 'newest'
+  })
+
+  useEffect(() => {
+    localStorage.setItem(SORT_KEY, sort)
+  }, [sort])
 
   // Month navigation — default to current month
   const now = new Date()
-  const [monthOffset, setMonthOffset] = useState(0) // 0 = current month, -1 = prev, etc.
+  const [monthOffset, setMonthOffset] = useState(0)
 
   const activeYear  = now.getFullYear() + Math.floor((now.getMonth() + monthOffset) / 12)
   const activeMonth = ((now.getMonth() + monthOffset) % 12 + 12) % 12
@@ -41,8 +53,10 @@ export function EntriesList({
 
   const activeKey = `${activeYear}-${String(activeMonth + 1).padStart(2, '0')}`
 
-  const filtered = entries
-    .filter(e => e.date.startsWith(activeKey))
+  const entriesInMonth = entries.filter(e => e.date.startsWith(activeKey))
+
+  const filtered = entriesInMonth
+    .filter(e => moodFilter === null || e.mood === moodFilter)
     .filter(e => !q || e.title.toLowerCase().includes(q.toLowerCase()) ||
       e.content.toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => {
@@ -52,6 +66,21 @@ export function EntriesList({
     })
 
   const sortLabels: Record<Sort, string> = { newest: 'Najnowsze', oldest: 'Najstarsze', mood: 'Nastrój' }
+
+  // Moods present in current month for filter
+  const moodsInMonth = useMemo(() => {
+    const set = new Set<number>()
+    entriesInMonth.forEach(e => { if (e.mood) set.add(e.mood) })
+    return set
+  }, [entriesInMonth])
+
+  const entryCountLabel = () => {
+    const n = entriesInMonth.length
+    if (n === 0) return null
+    if (n === 1) return '1 wpis'
+    if (n < 5) return `${n} wpisy`
+    return `${n} wpisów`
+  }
 
   return (
     <div className="flex flex-col h-full parchment-bg">
@@ -67,7 +96,7 @@ export function EntriesList({
         </div>
 
         {/* Month navigator */}
-        <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-center justify-between mb-1 px-1">
           <button
             onClick={() => setMonthOffset(o => o - 1)}
             className="p-1.5 rounded-lg hover:bg-[rgba(201,153,63,0.12)] transition-colors"
@@ -97,6 +126,49 @@ export function EntriesList({
             <ChevronRight size={18} />
           </button>
         </div>
+
+        {/* Entry count */}
+        {entryCountLabel() && (
+          <p className="text-center mb-3"
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.45)', letterSpacing: '0.1em' }}>
+            {entryCountLabel()}
+          </p>
+        )}
+
+        {/* Mood filter */}
+        {moodsInMonth.size > 0 && (
+          <div className="flex items-center justify-center gap-1.5 mb-3">
+            {([5, 4, 3, 2, 1] as const).filter(m => moodsInMonth.has(m)).map(m => (
+              <button
+                key={m}
+                onClick={() => setMoodFilter(moodFilter === m ? null : m)}
+                title={`Filtruj: ${MOOD_EMOJI[m]}`}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-base transition-all duration-150"
+                style={{
+                  background: moodFilter === m ? 'rgba(201,153,63,0.25)' : 'rgba(201,153,63,0.08)',
+                  border: moodFilter === m ? '1.5px solid rgba(201,153,63,0.6)' : '1.5px solid transparent',
+                  transform: moodFilter === m ? 'scale(1.15)' : 'scale(1)',
+                }}
+              >
+                {MOOD_EMOJI[m]}
+              </button>
+            ))}
+            {moodFilter !== null && (
+              <button
+                onClick={() => setMoodFilter(null)}
+                className="ml-1 px-2 py-0.5 rounded-full text-[10px] transition-colors"
+                style={{
+                  fontFamily: "'Cinzel', serif",
+                  color: 'rgba(201,153,63,0.6)',
+                  background: 'rgba(201,153,63,0.08)',
+                  letterSpacing: '0.06em',
+                }}
+              >
+                Wyczyść
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative mb-3">
@@ -136,18 +208,20 @@ export function EntriesList({
             <BookOpen size={44} className="text-[#C9993F]/30" />
             <p style={{ fontFamily: "'Playfair Display', serif" }}
               className="text-[#7A5C42] text-center italic text-sm leading-relaxed">
-              {q
-                ? 'Nie znaleziono wspomnień\npasujących do wyszukiwania.'
-                : 'Twoja księga jest pusta.\nCzas na pierwszy wpis!'}
+              {q || moodFilter
+                ? 'Nie znaleziono wspomnień\npasujących do filtrów.'
+                : entriesInMonth.length === 0
+                  ? 'W tym miesiącu nie ma jeszcze\nżadnych wpisów.'
+                  : 'Brak wyników.'}
             </p>
-            {!q && (
+            {!q && !moodFilter && entriesInMonth.length === 0 && (
               <button
                 onClick={onNewEntry}
                 style={{ fontFamily: "'Cinzel', serif", fontSize: 11 }}
                 className="flex items-center gap-2 px-6 py-2.5 bg-[#C9993F] text-white rounded-xl uppercase tracking-widest hover:bg-[#F0C96A] transition-colors"
               >
                 <Plus size={14} />
-                Napisz pierwszy wpis
+                Napisz wpis
               </button>
             )}
           </div>

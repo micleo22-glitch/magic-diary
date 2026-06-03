@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -8,13 +8,16 @@ import Placeholder from '@tiptap/extension-placeholder'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading1, Heading2, Quote, List, ListOrdered,
-  Mic, PenLine, Lock,
+  Mic, PenLine, Lock, Save,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { MoodPicker } from './MoodPicker'
 import { WeekCalendar } from './WeekCalendar'
 import { createEntry, updateEntry } from '@/lib/storage'
 import { Entry } from '@/types/entry'
+import { toast } from '@/lib/toast'
+
+const DRAFT_KEY = 'magic_diary_draft'
 
 function getGreeting(): string {
   const h = new Date().getHours()
@@ -30,6 +33,16 @@ function getDayAndDate(): { day: string; date: string } {
   const months = ['stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca',
     'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia']
   return { day: days[now.getDay()], date: `${now.getDate()} ${months[now.getMonth()]}` }
+}
+
+function extractFirstSentence(html: string): string {
+  if (typeof document === 'undefined') return ''
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  const text = (tmp.textContent ?? '').trim()
+  const end = text.search(/[.!?]/)
+  const sentence = end > 0 ? text.slice(0, end + 1) : text.slice(0, 60)
+  return sentence.trim()
 }
 
 interface EntryEditorProps {
@@ -65,10 +78,23 @@ function TBtn({ onClick, active, title, disabled, children }: TBtnProps) {
 }
 
 export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
-  const [title, setTitle] = useState(entry?.title ?? '')
-  const [mood, setMood] = useState<1 | 2 | 3 | 4 | 5 | null>(entry?.mood ?? null)
-  const [date, setDate] = useState(entry?.date ?? new Date().toISOString().split('T')[0])
+  const isNew = !entry
+
+  // For new entries, try to restore draft
+  const initDraft = () => {
+    if (!isNew) return null
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      return raw ? JSON.parse(raw) : null
+    } catch (_e) { return null }
+  }
+  const draft = useRef(initDraft())
+
+  const [title, setTitle] = useState(entry?.title ?? draft.current?.title ?? '')
+  const [mood, setMood] = useState<1 | 2 | 3 | 4 | 5 | null>(entry?.mood ?? draft.current?.mood ?? null)
+  const [date, setDate] = useState(entry?.date ?? draft.current?.date ?? new Date().toISOString().split('T')[0])
   const [saving, setSaving] = useState(false)
+  const [draftSaved, setDraftSaved] = useState(false)
 
   const greeting = getGreeting()
   const { day, date: dateLabel } = getDayAndDate()
@@ -80,11 +106,25 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
       Underline,
       Placeholder.configure({ placeholder: 'Zacznij pisać swoje myśli...' }),
     ],
-    content: entry?.content ?? '',
+    content: entry?.content ?? draft.current?.content ?? '',
     editorProps: {
       attributes: { class: 'tiptap-content outline-none' },
     },
   })
+
+  // Auto-save draft for new entries every 30s
+  useEffect(() => {
+    if (!isNew || !editor) return
+    const interval = setInterval(() => {
+      const content = editor.getHTML()
+      const text = editor.getText().trim()
+      if (!text) return
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ title, content, mood, date }))
+      setDraftSaved(true)
+      setTimeout(() => setDraftSaved(false), 2000)
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [isNew, editor, title, mood, date])
 
   const handleSave = useCallback(async () => {
     if (!editor) return
@@ -92,14 +132,24 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
     const text = editor.getText().trim()
     if (!text) return
     setSaving(true)
+
+    // Auto-generate title from first sentence if empty
+    const finalTitle = title.trim() || extractFirstSentence(content)
+
     try {
       let saved: Entry | null
       if (entry) {
-        saved = await updateEntry(entry.id, { title, content, mood, date })
+        saved = await updateEntry(entry.id, { title: finalTitle, content, mood, date })
       } else {
-        saved = await createEntry({ title, content, mood, date })
+        saved = await createEntry({ title: finalTitle, content, mood, date })
       }
-      if (saved) onSave(saved)
+      if (saved) {
+        localStorage.removeItem(DRAFT_KEY)
+        toast(entry ? 'Zmiany zapisane' : 'Wpis zapisany', 'success')
+        onSave(saved)
+      }
+    } catch (_e) {
+      toast('Nie udało się zapisać', 'error')
     } finally {
       setSaving(false)
     }
@@ -119,18 +169,16 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
 
         {/* Greeting + day/date */}
         <div className="px-4 mb-3">
-          {/* Greeting — duże */}
           <p style={{ fontFamily: "'Lora', Georgia, serif", color: '#7A5C42', fontSize: 30, lineHeight: 1.15 }}
             className="mb-1">
             {greeting}
           </p>
-          {/* Dzień + data — normalna wielkość liter */}
           <p style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 15 }}>
             {day} &nbsp;·&nbsp; {dateLabel}
           </p>
         </div>
 
-        {/* Calendar — pełna szerokość jak bottom nav */}
+        {/* Calendar */}
         <WeekCalendar selectedDate={date} onSelectDate={setDate} />
 
         {/* Mood */}
@@ -150,7 +198,7 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
           value={title}
           onChange={e => setTitle(e.target.value)}
           maxLength={120}
-          placeholder="Tytuł wpisu..."
+          placeholder="Tytuł wpisu (opcjonalnie)..."
           className="title-input w-full bg-transparent outline-none pb-3 border-b border-[rgba(201,169,110,0.25)]"
           style={{
             fontFamily: "'Lora', Georgia, serif",
@@ -163,7 +211,8 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
 
       {/* === TOOLBAR === */}
       {editor && (
-        <div className="px-3 py-2 flex flex-wrap items-center gap-0.5 border-b border-[rgba(201,169,110,0.15)]">
+        <div className="toolbar-scroll border-b border-[rgba(201,169,110,0.15)]">
+        <div className="px-3 py-2 flex items-center gap-0.5 min-w-max">
           <TBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold">
             <Bold size={15} />
           </TBtn>
@@ -205,6 +254,16 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
               <Lock size={8} className="absolute -bottom-0.5 -right-0.5" />
             </span>
           </TBtn>
+
+          {/* Draft saved indicator */}
+          {draftSaved && (
+            <span className="ml-4 flex items-center gap-1 text-[#7A5C42] opacity-70 flex-shrink-0"
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.06em' }}>
+              <Save size={10} />
+              Szkic zapisany
+            </span>
+          )}
+        </div>
         </div>
       )}
 
@@ -212,6 +271,20 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
       <div className="flex-1 tiptap-editor">
         <EditorContent editor={editor} />
       </div>
+
+      {/* Draft restore banner (for new entries with existing draft) */}
+      {isNew && draft.current && (
+        <div className="mx-4 mb-2 px-4 py-2.5 rounded-xl border border-[rgba(201,153,63,0.3)] flex items-center justify-between gap-3"
+          style={{ background: 'rgba(201,153,63,0.08)', fontFamily: "'Cinzel', serif", fontSize: 11, color: '#C9993F', letterSpacing: '0.04em' }}>
+          <span>Znaleziono niezapisany szkic</span>
+          <button
+            onClick={() => { localStorage.removeItem(DRAFT_KEY); draft.current = null; window.location.reload() }}
+            className="underline opacity-60 hover:opacity-100 transition-opacity"
+          >
+            Odrzuć
+          </button>
+        </div>
+      )}
 
       {/* === SAVE BUTTON === */}
       <div className="sticky bottom-0 px-4 py-4"

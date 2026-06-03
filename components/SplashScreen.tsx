@@ -9,7 +9,7 @@ interface SplashScreenProps {
 
 export function SplashScreen({ onDone }: SplashScreenProps) {
   useEffect(() => {
-    const t = setTimeout(onDone, 2600)
+    const t = setTimeout(onDone, 1400)
     return () => clearTimeout(t)
   }, [onDone])
 
@@ -97,7 +97,7 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
         style={{ height: 1, background: '#C9993F' }}
         initial={{ width: 0, opacity: 0 }}
         animate={{ width: 130, opacity: [0, 0.8, 0.4] }}
-        transition={{ duration: 2.6, ease: 'easeInOut' }}
+        transition={{ duration: 1.4, ease: 'easeInOut' }}
       />
     </motion.div>
   )

@@ -1,7 +1,17 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Wand2, Mic, MicOff } from 'lucide-react'
+import { Send, Wand2, Mic, MicOff, Clock } from 'lucide-react'
+
+const SNAPE_REPLIES = [
+  'Zadziwiające. Kolejna płytka refleksja. Spróbuj głębiej.',
+  'Hmm. Widzę, że myślenie nie jest twoją mocną stroną. Przynajmniej piszesz.',
+  'Interesujące. Chociaż twoje słowa są tak blade jak twoja ocena z eliksirów.',
+  'Powiadasz? Skończyłem słuchać po pierwszym zdaniu, ale kontynuuj.',
+  'Oto rzadki błysk samoświadomości. Nie pozwól, by przyszedł w nawyk.',
+  'Piszesz to, jakbyś miał rację. Rozczarowujesz mnie niezwykle rzadko.',
+  'Kolejny dzień, kolejny wpis pełen oczywistości. Ale to lepsze niż cisza.',
+]
 
 interface Message {
   role: 'user' | 'assistant'
@@ -40,12 +50,10 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
     setMessages(prev => [...prev, { role: 'user', text }])
     setLoading(true)
     setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        { role: 'assistant', text: '...(agent zostanie podłączony)' },
-      ])
+      const reply = SNAPE_REPLIES[Math.floor(Math.random() * SNAPE_REPLIES.length)]
+      setMessages(prev => [...prev, { role: 'assistant', text: reply }])
       setLoading(false)
-    }, 800)
+    }, 900)
   }
 
   const toggleRecording = () => {
@@ -113,6 +121,11 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
         >
           doradca osobisty
         </span>
+        <div className="ml-auto flex items-center gap-1"
+          style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: 'rgba(201,153,63,0.3)', letterSpacing: '0.06em' }}>
+          <Clock size={9} style={{ color: 'rgba(201,153,63,0.3)' }} />
+          TRYB DEMO
+        </div>
       </div>
 
       {/* Messages */}

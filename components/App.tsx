@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, User, GraduationCap, ShoppingBag, Settings, LogOut } from 'lucide-react'
+import {
+  X, User, GraduationCap, ShoppingBag, Settings, LogOut,
+  Download, Trash2, Mail, KeyRound, Star,
+} from 'lucide-react'
 import { SplashScreen } from './SplashScreen'
 import { EntryEditor } from './EntryEditor'
 import { EntriesList } from './EntriesList'
@@ -10,12 +13,16 @@ import { EntryView } from './EntryView'
 import { BottomNav } from './BottomNav'
 import { Sidebar } from './Sidebar'
 import { AuthScreen } from './AuthScreen'
-import { getEntries } from '@/lib/storage'
+import { ToastContainer } from './Toast'
+import { Onboarding } from './Onboarding'
+import { getEntries, deleteEntry } from '@/lib/storage'
 import { supabase } from '@/lib/supabase'
-import { Entry } from '@/types/entry'
+import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
+import { toast } from '@/lib/toast'
 import type { Session } from '@supabase/supabase-js'
 
 type View = 'splash' | 'new' | 'entries' | 'view' | 'edit'
+type MobilePanel = null | 'menu' | 'settings' | 'profile'
 
 function getInitials(email: string): string {
   const name = email.split('@')[0]
@@ -38,6 +45,98 @@ const HOUSES = [
   { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🦅', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)' },
 ]
 
+// ─── stat helpers ────────────────────────────────────────────
+function calcStreak(entries: Entry[]): number {
+  if (!entries.length) return 0
+  const dates = Array.from(new Set(entries.map(e => e.date))).sort().reverse()
+  let streak = 0
+  let cursor = new Date()
+  cursor.setHours(0, 0, 0, 0)
+  for (const d of dates) {
+    const day = new Date(d)
+    day.setHours(0, 0, 0, 0)
+    const diff = Math.round((cursor.getTime() - day.getTime()) / 86400000)
+    if (diff > 1) break
+    streak++
+    cursor = day
+  }
+  return streak
+}
+
+function topMood(entries: Entry[]): string | null {
+  const counts: Record<number, number> = {}
+  entries.forEach(e => { if (e.mood) counts[e.mood] = (counts[e.mood] ?? 0) + 1 })
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+  if (!top) return null
+  const m = Number(top[0]) as 1 | 2 | 3 | 4 | 5
+  return `${MOOD_EMOJI[m]} ${MOOD_LABEL[m]}`
+}
+
+function memberSince(session: Session | null): string {
+  if (!session) return '—'
+  const d = new Date(session.user.created_at ?? '')
+  if (isNaN(d.getTime())) return '—'
+  const months = ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru']
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
+}
+
+function exportEntries(entries: Entry[]) {
+  const json = JSON.stringify(entries, null, 2)
+  const blob = new Blob([json], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `magic-diary-export-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ─── shared overlay wrapper ───────────────────────────────────
+function Overlay({ title, icon: Icon, onClose, children }: {
+  title: string
+  icon: React.ElementType
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-[60] flex flex-col md:hidden"
+      style={{ background: 'linear-gradient(180deg, #2C0F0A 0%, #1A0A06 100%)' }}
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 24 }}
+      transition={{ duration: 0.2 }}
+    >
+      <div className="flex items-center justify-between px-5 pt-6 pb-4 border-b border-[rgba(201,153,63,0.15)]">
+        <div className="flex items-center gap-3">
+          <Icon size={16} style={{ color: '#C9993F' }} />
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: '#C9993F', letterSpacing: '0.1em' }}>
+            {title}
+          </span>
+        </div>
+        <button onClick={onClose} className="p-2 rounded-xl hover:bg-[rgba(201,153,63,0.1)] transition-colors" style={{ color: 'rgba(201,153,63,0.5)' }}>
+          <X size={18} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
+        {children}
+      </div>
+    </motion.div>
+  )
+}
+
+function SectionCard({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-[rgba(201,153,63,0.15)]" style={{ background: 'rgba(255,255,255,0.03)' }}>
+      <div className="px-4 pt-4 pb-5">
+        <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.12em' }}
+          className="mb-3 uppercase">{label}</p>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [view, setView] = useState<View>('splash')
@@ -45,26 +144,35 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null)
   const [username, setUsername] = useState('')
   const [usernameInput, setUsernameInput] = useState('')
   const [house, setHouse] = useState('')
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     const savedName = localStorage.getItem('magic_diary_username')
     const savedHouse = localStorage.getItem('magic_diary_house')
+    const onboardingDone = localStorage.getItem('magic_diary_onboarding_done')
     if (savedName) { setUsername(savedName); setUsernameInput(savedName) }
     if (savedHouse) setHouse(savedHouse)
+    if (!onboardingDone) setShowOnboarding(true)
   }, [])
 
   function saveMobileUsername() {
-    localStorage.setItem('magic_diary_username', usernameInput)
-    setUsername(usernameInput)
+    const trimmed = usernameInput.trim()
+    if (!trimmed) return
+    localStorage.setItem('magic_diary_username', trimmed)
+    setUsername(trimmed)
+    toast('Nazwa zapisana', 'success')
   }
 
   function selectMobileHouse(id: string) {
     localStorage.setItem('magic_diary_house', id)
     setHouse(id)
+    const h = HOUSES.find(h => h.id === id)
+    toast(`Dom ${h?.name} wybrany`, 'success')
   }
 
   // Auth listener
@@ -85,7 +193,6 @@ export function App() {
 
   useEffect(() => { reload() }, [reload])
 
-  // After splash + login: open today's entry or new-entry editor for today
   const openToday = useCallback(async () => {
     const data = await reload()
     const today = new Date().toISOString().slice(0, 10)
@@ -101,60 +208,61 @@ export function App() {
 
   const selectedEntry = selectedId ? entries.find(e => e.id === selectedId) ?? null : null
 
-  // === Handlers ===
   const handleSplashDone = () => {
     if (session) { reload(); setView('new') }
-    else setView('entries') // session null → falls through to <AuthScreen />
+    else setView('entries')
   }
 
   const handleSaved = (entry: Entry) => {
     reload(); setSelectedId(entry.id); setView('view')
   }
 
-  const handleSelect = (id: string) => {
-    setSelectedId(id); setView('view')
+  const handleSelect = (id: string) => { setSelectedId(id); setView('view') }
+  const handleEdit = (entry: Entry) => { setEditEntry(entry); setView('edit') }
+  const handleDeleted = () => { reload(); setSelectedId(null); setView('entries') }
+  const handleNew = () => { setEditEntry(null); setView('new') }
+  const handleLogout = async () => { await supabase.auth.signOut() }
+
+  async function handleDeleteAll() {
+    for (const e of entries) await deleteEntry(e.id)
+    reload()
+    setConfirmDeleteAll(false)
+    setMobilePanel(null)
+    toast('Wszystkie wpisy usunięte', 'info')
   }
 
-  const handleEdit = (entry: Entry) => {
-    setEditEntry(entry); setView('edit')
-  }
-
-  const handleDeleted = () => {
-    reload(); setSelectedId(null); setView('entries')
-  }
-
-  const handleNew = () => {
-    setEditEntry(null); setView('new')
-  }
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-  }
-
-  // Still resolving session
   if (session === undefined) return null
 
-  // Show splash first on every load — auth check happens after
   if (view === 'splash') {
     return (
-      <AnimatePresence>
-        <SplashScreen onDone={handleSplashDone} />
-      </AnimatePresence>
+      <>
+        <ToastContainer />
+        <AnimatePresence>
+          <SplashScreen onDone={handleSplashDone} />
+        </AnimatePresence>
+      </>
     )
   }
 
-  // After splash: not logged in → auth screen
-  if (!session) return <AuthScreen />
+  if (!session) return <><ToastContainer /><AuthScreen /></>
 
-  // === Right panel content (desktop always; mobile for non-list views) ===
+  if (showOnboarding) {
+    return (
+      <>
+        <ToastContainer />
+        <Onboarding onDone={(name, h) => {
+          if (name) { setUsername(name); setUsernameInput(name) }
+          if (h) setHouse(h)
+          setShowOnboarding(false)
+        }} />
+      </>
+    )
+  }
+
   function RightPanel() {
     if (view === 'new') {
       return (
-        <EntryEditor
-          key="new"
-          onSave={handleSaved}
-          onCancel={() => setView(selectedId ? 'view' : 'entries')}
-        />
+        <EntryEditor key="new" onSave={handleSaved} onCancel={() => setView(selectedId ? 'view' : 'entries')} />
       )
     }
     if (view === 'edit' && editEntry) {
@@ -178,7 +286,6 @@ export function App() {
         />
       )
     }
-    // Welcome / empty state on desktop
     return (
       <div className="parchment-bg h-full flex flex-col items-center justify-center gap-3">
         <span style={{ fontSize: 56, opacity: 0.18 }}>✍️</span>
@@ -191,45 +298,231 @@ export function App() {
   }
 
   const userEmail = session?.user?.email ?? ''
+  const houseData = HOUSES.find(h => h.id === house)
+  const streak = calcStreak(entries)
+  const topMoodStr = topMood(entries)
+
+  // ─── Settings panels (shared between mobile & desktop, rendered differently) ───
+
+  function SettingsContent() {
+    return (
+      <>
+        {/* Konto */}
+        <SectionCard label="Konto">
+          <div className="flex items-center gap-3 mb-4 p-3 rounded-xl" style={{ background: 'rgba(201,153,63,0.06)' }}>
+            <Mail size={14} style={{ color: 'rgba(201,153,63,0.5)', flexShrink: 0 }} />
+            <span style={{ fontFamily: "'Lora', serif", fontSize: 13, color: '#D4A96A' }} className="truncate">
+              {userEmail}
+            </span>
+          </div>
+          <button
+            onClick={() => { setMobilePanel(null); handleLogout() }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[rgba(201,153,63,0.12)] hover:border-[rgba(201,153,63,0.3)] transition-all"
+            style={{ background: 'rgba(255,255,255,0.02)' }}
+          >
+            <LogOut size={14} style={{ color: 'rgba(201,153,63,0.5)' }} />
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: 'rgba(201,153,63,0.7)', letterSpacing: '0.06em' }}>
+              Wyloguj się
+            </span>
+          </button>
+        </SectionCard>
+
+        {/* Nazwa użytkownika */}
+        <SectionCard label="Nazwa użytkownika">
+          <input
+            type="text"
+            value={usernameInput}
+            onChange={e => setUsernameInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && saveMobileUsername()}
+            placeholder={userEmail.split('@')[0]}
+            style={{ fontFamily: "'Lora', serif", fontSize: 15, background: 'rgba(255,255,255,0.05)' }}
+            className="w-full px-4 py-3 rounded-xl border border-[rgba(201,153,63,0.2)] text-[#D4A96A] placeholder:text-[#7A5C42]/50 outline-none focus:border-[#C9993F]/50 transition-colors mb-3"
+          />
+          <button
+            onClick={saveMobileUsername}
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.08em' }}
+            className="w-full py-3 rounded-xl bg-[#C9993F] text-[#1A0A06] font-semibold hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
+          >
+            Zapisz
+          </button>
+        </SectionCard>
+
+        {/* Twój Dom */}
+        <SectionCard label="Twój Dom">
+          <div className="grid grid-cols-2 gap-2">
+            {HOUSES.map(h => {
+              const selected = house === h.id
+              return (
+                <button
+                  key={h.id}
+                  onClick={() => selectMobileHouse(h.id)}
+                  className="flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all active:scale-[0.97]"
+                  style={{
+                    borderColor: selected ? h.color : 'rgba(201,153,63,0.12)',
+                    background: selected ? h.bg : 'rgba(255,255,255,0.02)',
+                  }}
+                >
+                  <span style={{ fontSize: 26 }}>{h.emoji}</span>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: selected ? h.color : 'rgba(201,153,63,0.55)', letterSpacing: '0.06em' }}>
+                    {h.name}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </SectionCard>
+
+        {/* Dane */}
+        <SectionCard label="Dane">
+          <button
+            onClick={() => { exportEntries(entries); toast('Plik pobrany', 'success') }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[rgba(201,153,63,0.12)] hover:border-[rgba(201,153,63,0.3)] mb-2 transition-all"
+            style={{ background: 'rgba(255,255,255,0.02)' }}
+          >
+            <Download size={14} style={{ color: 'rgba(201,153,63,0.5)' }} />
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: 'rgba(201,153,63,0.7)', letterSpacing: '0.06em' }}>
+              Eksportuj wpisy (.json)
+            </span>
+          </button>
+
+          {!confirmDeleteAll ? (
+            <button
+              onClick={() => setConfirmDeleteAll(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[rgba(180,30,30,0.2)] hover:border-[rgba(180,30,30,0.5)] transition-all"
+              style={{ background: 'rgba(180,30,30,0.05)' }}
+            >
+              <Trash2 size={14} style={{ color: '#E05555' }} />
+              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: '#E05555', letterSpacing: '0.06em' }}>
+                Usuń wszystkie wpisy
+              </span>
+            </button>
+          ) : (
+            <div className="p-3 rounded-xl border border-[rgba(180,30,30,0.3)]" style={{ background: 'rgba(180,30,30,0.08)' }}>
+              <p style={{ fontFamily: "'Lora', serif", fontSize: 13, color: '#E05555' }} className="mb-3 text-center">
+                Na pewno? Tego nie można cofnąć.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmDeleteAll(false)}
+                  className="flex-1 py-2 rounded-xl border border-[rgba(201,153,63,0.2)] transition-colors"
+                  style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: 'rgba(201,153,63,0.6)' }}>
+                  Anuluj
+                </button>
+                <button onClick={handleDeleteAll}
+                  className="flex-1 py-2 rounded-xl transition-colors"
+                  style={{ background: 'rgba(180,30,30,0.3)', fontFamily: "'Cinzel', serif", fontSize: 11, color: '#E05555' }}>
+                  Usuń
+                </button>
+              </div>
+            </div>
+          )}
+        </SectionCard>
+      </>
+    )
+  }
+
+  function ProfileContent() {
+    return (
+      <>
+        {/* Avatar + name */}
+        <div className="flex flex-col items-center gap-3 py-4">
+          <div style={{
+            width: 72, height: 72, borderRadius: '50%',
+            background: houseData
+              ? `linear-gradient(135deg, ${houseData.color}99 0%, ${houseData.color}44 100%)`
+              : 'linear-gradient(135deg, #C9993F 0%, #8B5E2A 100%)',
+            border: `2px solid ${houseData?.color ?? 'rgba(201,153,63,0.4)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: "'Cinzel', serif", fontSize: 24, color: '#F5EDD8', fontWeight: 600,
+          }}>
+            {username ? username.slice(0, 2).toUpperCase() : getInitials(userEmail)}
+          </div>
+          <div className="text-center">
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: '#C9993F' }}>
+              {username || userEmail.split('@')[0]}
+            </p>
+            {houseData && (
+              <p style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: houseData.color, letterSpacing: '0.08em' }}>
+                {houseData.emoji} {houseData.name}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <SectionCard label="Statystyki">
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'Wpisów', value: entries.length.toString() },
+              { label: 'Seria dni', value: streak > 0 ? `${streak} 🔥` : '—' },
+              { label: 'Nastrój', value: topMoodStr ?? '—' },
+              { label: 'Dołączył/a', value: memberSince(session ?? null) },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl"
+                style={{ background: 'rgba(201,153,63,0.06)', border: '1px solid rgba(201,153,63,0.1)' }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.45)', letterSpacing: '0.1em' }}>
+                  {label.toUpperCase()}
+                </span>
+                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: '#D4A96A' }}>
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+
+        {/* Mood distribution */}
+        {entries.length > 0 && (
+          <SectionCard label="Rozkład nastrojów">
+            <div className="flex flex-col gap-2">
+              {([5, 4, 3, 2, 1] as const).map(m => {
+                const count = entries.filter(e => e.mood === m).length
+                const pct = entries.length > 0 ? Math.round((count / entries.length) * 100) : 0
+                if (count === 0) return null
+                return (
+                  <div key={m} className="flex items-center gap-3">
+                    <span style={{ fontSize: 16, width: 22, textAlign: 'center' }}>{MOOD_EMOJI[m]}</span>
+                    <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(201,153,63,0.12)' }}>
+                      <div className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%`, background: 'rgba(201,153,63,0.6)' }} />
+                    </div>
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.5)', minWidth: 28, textAlign: 'right' }}>
+                      {pct}%
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </SectionCard>
+        )}
+      </>
+    )
+  }
 
   return (
     <div className="flex overflow-hidden" style={{ background: '#1A0A06', height: '100dvh' }}>
+      <ToastContainer />
 
       {/* ===== MOBILE: Full-screen menu overlay ===== */}
       <AnimatePresence>
         {menuOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               className="fixed inset-0 z-40 md:hidden"
               style={{ background: 'rgba(10,4,2,0.75)', backdropFilter: 'blur(4px)' }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setMenuOpen(false)}
             />
-
-            {/* Menu panel — slides up from bottom */}
             <motion.div
               className="fixed inset-x-0 bottom-0 z-50 md:hidden rounded-t-3xl overflow-hidden"
               style={{ background: '#2C0F0A', borderTop: '1px solid rgba(201,169,110,0.2)', maxHeight: '85dvh' }}
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
             >
-              {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(201,153,63,0.3)' }} />
               </div>
-
-              {/* Close button */}
-              <button
-                onClick={() => setMenuOpen(false)}
-                className="absolute top-3 right-4 p-2 rounded-xl"
-                style={{ color: 'rgba(201,153,63,0.5)' }}
-              >
+              <button onClick={() => setMenuOpen(false)} className="absolute top-3 right-4 p-2 rounded-xl" style={{ color: 'rgba(201,153,63,0.5)' }}>
                 <X size={18} />
               </button>
 
@@ -237,10 +530,12 @@ export function App() {
               <div className="flex items-center gap-4 px-6 py-5 border-b border-[rgba(201,169,110,0.12)]">
                 <div style={{
                   width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-                  background: 'linear-gradient(135deg, #C9993F 0%, #8B5E2A 100%)',
-                  border: '2px solid rgba(201,153,63,0.4)',
+                  background: houseData
+                    ? `linear-gradient(135deg, ${houseData.color}99 0%, ${houseData.color}44 100%)`
+                    : 'linear-gradient(135deg, #C9993F 0%, #8B5E2A 100%)',
+                  border: `2px solid ${houseData?.color ?? 'rgba(201,153,63,0.4)'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: "'Cinzel', serif", fontSize: 18, color: '#1A0A06', fontWeight: 600,
+                  fontFamily: "'Cinzel', serif", fontSize: 18, color: '#F5EDD8', fontWeight: 600,
                 }}>
                   {username ? username.slice(0, 2).toUpperCase() : getInitials(userEmail)}
                 </div>
@@ -249,6 +544,11 @@ export function App() {
                     className="truncate capitalize">
                     {username || userEmail.split('@')[0]}
                   </p>
+                  {houseData && (
+                    <p style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: houseData.color, letterSpacing: '0.05em' }}>
+                      {houseData.emoji} {houseData.name}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -258,7 +558,10 @@ export function App() {
                   <button
                     key={label}
                     onClick={() => {
-                      if (label === 'Ustawienia') { setMenuOpen(false); setSettingsOpen(true) }
+                      setMenuOpen(false)
+                      if (label === 'Ustawienia') setMobilePanel('settings')
+                      else if (label === 'Profil') setMobilePanel('profile')
+                      else toast('Wkrótce dostępne', 'info')
                     }}
                     className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-colors"
                     style={{ color: '#C9993F' }}
@@ -269,136 +572,53 @@ export function App() {
                     <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.08em' }}>
                       {label}
                     </span>
+                    {(label === 'Nauczyciele' || label === 'Sklep') && (
+                      <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(201,153,63,0.12)', color: 'rgba(201,153,63,0.5)', fontFamily: "'Cinzel', serif", letterSpacing: '0.06em' }}>
+                        Wkrótce
+                      </span>
+                    )}
                   </button>
                 ))}
-              </div>
-
-              {/* Wyloguj */}
-              <div className="px-3 pb-6 border-t border-[rgba(201,169,110,0.1)] pt-3" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
-                <button
-                  onClick={() => { setMenuOpen(false); handleLogout() }}
-                  className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-colors"
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,153,63,0.08)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <LogOut size={20} style={{ color: 'rgba(201,153,63,0.6)' }} />
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.08em', color: '#C9993F' }}>
-                    Wyloguj się
-                  </span>
-                </button>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
-      {/* ===== Settings full-screen overlay (mobile) ===== */}
+      {/* ===== Settings overlay (mobile) ===== */}
       <AnimatePresence>
-        {settingsOpen && (
-          <motion.div
-            className="fixed inset-0 z-[60] flex flex-col md:hidden"
-            style={{ background: 'linear-gradient(180deg, #2C0F0A 0%, #1A0A06 100%)' }}
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
-            transition={{ duration: 0.2 }}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-6 pb-4 border-b border-[rgba(201,153,63,0.15)]">
-              <div className="flex items-center gap-3">
-                <Settings size={16} style={{ color: '#C9993F' }} />
-                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: '#C9993F', letterSpacing: '0.1em' }}>
-                  USTAWIENIA
-                </span>
-              </div>
-              <button
-                onClick={() => setSettingsOpen(false)}
-                className="p-2 rounded-xl hover:bg-[rgba(201,153,63,0.1)] transition-colors"
-                style={{ color: 'rgba(201,153,63,0.5)' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
+        {mobilePanel === 'settings' && (
+          <Overlay title="USTAWIENIA" icon={Settings} onClose={() => { setMobilePanel(null); setConfirmDeleteAll(false) }}>
+            <SettingsContent />
+          </Overlay>
+        )}
+      </AnimatePresence>
 
-            {/* Settings content */}
-            <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
-
-              {/* Nazwa użytkownika */}
-              <div className="rounded-2xl border border-[rgba(201,153,63,0.15)]"
-                style={{ background: 'rgba(255,255,255,0.03)' }}>
-                <div className="px-4 pt-4 pb-5">
-                  <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.12em' }}
-                    className="mb-3 uppercase">Nazwa użytkownika</p>
-                  <input
-                    type="text"
-                    value={usernameInput}
-                    onChange={e => setUsernameInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && saveMobileUsername()}
-                    placeholder={userEmail.split('@')[0]}
-                    style={{ fontFamily: "'Lora', serif", fontSize: 15, background: 'rgba(255,255,255,0.05)' }}
-                    className="w-full px-4 py-3 rounded-xl border border-[rgba(201,153,63,0.2)] text-[#D4A96A] placeholder:text-[#7A5C42]/50 outline-none focus:border-[#C9993F]/50 transition-colors mb-3"
-                  />
-                  <button
-                    onClick={saveMobileUsername}
-                    style={{ fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.08em' }}
-                    className="w-full py-3 rounded-xl bg-[#C9993F] text-[#1A0A06] font-semibold hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
-                  >
-                    Zapisz
-                  </button>
-                </div>
-              </div>
-
-              {/* Wybór domu */}
-              <div className="rounded-2xl border border-[rgba(201,153,63,0.15)]"
-                style={{ background: 'rgba(255,255,255,0.03)' }}>
-                <div className="px-4 pt-4 pb-5">
-                  <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.12em' }}
-                    className="mb-3 uppercase">Twój Dom</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {HOUSES.map(h => {
-                      const selected = house === h.id
-                      return (
-                        <button
-                          key={h.id}
-                          onClick={() => selectMobileHouse(h.id)}
-                          className="flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all active:scale-[0.97]"
-                          style={{
-                            borderColor: selected ? h.color : 'rgba(201,153,63,0.12)',
-                            background: selected ? h.bg : 'rgba(255,255,255,0.02)',
-                          }}
-                        >
-                          <span style={{ fontSize: 26 }}>{h.emoji}</span>
-                          <span style={{
-                            fontFamily: "'Cinzel', serif", fontSize: 10,
-                            color: selected ? h.color : 'rgba(201,153,63,0.55)',
-                            letterSpacing: '0.06em',
-                          }}>
-                            {h.name}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </motion.div>
+      {/* ===== Profile overlay (mobile) ===== */}
+      <AnimatePresence>
+        {mobilePanel === 'profile' && (
+          <Overlay title="PROFIL" icon={User} onClose={() => setMobilePanel(null)}>
+            <ProfileContent />
+          </Overlay>
         )}
       </AnimatePresence>
 
       {/* ===== DESKTOP: Left sidebar ===== */}
-      <div
-        className="hidden md:flex flex-col flex-shrink-0 border-r border-[rgba(201,169,110,0.1)]"
-        style={{ width: 288 }}
-      >
+      <div className="hidden md:flex flex-col flex-shrink-0 border-r border-[rgba(201,169,110,0.1)]" style={{ width: 288 }}>
         <Sidebar
           entries={entries}
           selectedEntryId={selectedId}
           onSelectEntry={handleSelect}
           onNewEntry={handleNew}
           userEmail={session.user.email ?? ''}
+          username={username}
+          house={house}
           onLogout={handleLogout}
+          onUsernameChange={(v) => { setUsername(v); setUsernameInput(v) }}
+          onHouseChange={selectMobileHouse}
+          onExport={() => { exportEntries(entries); toast('Plik pobrany', 'success') }}
+          onDeleteAll={handleDeleteAll}
         />
       </div>
 
@@ -411,22 +631,14 @@ export function App() {
 
       {/* ===== MOBILE: Single panel views ===== */}
       <div className="flex md:hidden flex-1 flex-col overflow-hidden">
-        {/* Mobile logo header — always visible */}
         <div
           className="leather-bg flex-shrink-0 flex items-center justify-center px-4 py-3 border-b border-[rgba(201,169,110,0.18)]"
         >
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo.png"
-              alt="Magic Diary"
-              width={34}
-              height={34}
-              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(201,153,63,0.5))' }}
-            />
-            <span
-              style={{ fontFamily: "'IM Fell English SC', serif", color: '#C9993F', fontSize: 19, letterSpacing: '0.1em' }}
-            >
+            <img src="/logo.png" alt="Magic Diary" width={34} height={34}
+              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(201,153,63,0.5))' }} />
+            <span style={{ fontFamily: "'IM Fell English SC', serif", color: '#C9993F', fontSize: 19, letterSpacing: '0.1em' }}>
               Magic Diary
             </span>
           </div>

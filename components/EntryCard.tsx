@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical, Eye, Trash2 } from 'lucide-react'
+import { MoreVertical, Eye, Trash2, X, AlertTriangle } from 'lucide-react'
 import { Entry, MOOD_EMOJI } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
+import { toast } from '@/lib/toast'
 
 function fmtDate(iso: string): string {
   const d = new Date(iso)
@@ -28,29 +29,26 @@ interface EntryCardProps {
 
 export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardProps) {
   const [menu, setMenu] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const preview = stripHtml(entry.content).slice(0, 110)
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (confirm('Usunąć ten wpis? Operacji nie można cofnąć.')) {
-      deleteEntry(entry.id)
-      onDeleted()
-    }
-    setMenu(false)
+    await deleteEntry(entry.id)
+    toast('Wpis usunięty', 'info')
+    onDeleted()
   }
 
   return (
     <div
-      onClick={onClick}
-      className="relative p-4 rounded-2xl cursor-pointer transition-all duration-200"
-      style={{
-        background: isSelected ? 'rgba(201,153,63,0.18)' : 'rgba(245,237,216,0.7)',
-      }}
+      onClick={() => { if (!confirmDelete) onClick() }}
+      className="relative rounded-2xl cursor-pointer transition-all duration-200 overflow-hidden"
+      style={{ background: isSelected ? 'rgba(201,153,63,0.18)' : 'rgba(245,237,216,0.7)' }}
     >
-      <div className="flex gap-3 items-start">
+      {/* Main card content */}
+      <div className="p-4 flex gap-3 items-start">
         <div className="flex-1 min-w-0">
-          <p style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: '#5C3D28' }}
-            className="mb-1">
+          <p style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: '#5C3D28' }} className="mb-1">
             {fmtDate(entry.date)}
           </p>
           <h3 style={{ fontFamily: "'Playfair Display', serif" }}
@@ -70,13 +68,44 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardPr
             <span className="text-lg leading-none">{MOOD_EMOJI[entry.mood]}</span>
           ) : null}
           <button
-            onClick={e => { e.stopPropagation(); setMenu(v => !v) }}
+            onClick={e => { e.stopPropagation(); setMenu(v => !v); setConfirmDelete(false) }}
             className="p-1 text-[#7A5C42] hover:text-[#C9993F] rounded-lg transition-colors"
           >
             <MoreVertical size={14} />
           </button>
         </div>
       </div>
+
+      {/* Delete confirmation bar */}
+      {confirmDelete && (
+        <div
+          className="px-4 pb-3 flex items-center justify-between gap-3"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={13} style={{ color: '#8B1A1A', flexShrink: 0 }} />
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: '#8B1A1A', letterSpacing: '0.04em' }}>
+              Usunąć bezpowrotnie?
+            </span>
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              onClick={e => { e.stopPropagation(); setConfirmDelete(false) }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#7A5C42', letterSpacing: '0.06em' }}
+              className="px-2.5 py-1 rounded-lg border border-[rgba(201,153,63,0.25)] hover:border-[rgba(201,153,63,0.5)] transition-colors"
+            >
+              Anuluj
+            </button>
+            <button
+              onClick={handleDelete}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#8B1A1A', letterSpacing: '0.06em', background: 'rgba(139,26,26,0.12)' }}
+              className="px-2.5 py-1 rounded-lg border border-[rgba(139,26,26,0.3)] hover:border-[rgba(139,26,26,0.6)] transition-colors"
+            >
+              Usuń
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Context menu */}
       {menu && (
@@ -96,7 +125,7 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardPr
               Podgląd
             </button>
             <button
-              onClick={handleDelete}
+              onClick={e => { e.stopPropagation(); setMenu(false); setConfirmDelete(true) }}
               style={{ fontFamily: "'Cinzel', serif", fontSize: 11 }}
               className="flex items-center gap-2 w-full px-4 py-2.5 text-[#8B1A1A] hover:bg-[#8B1A1A]/10 uppercase tracking-wide"
             >
