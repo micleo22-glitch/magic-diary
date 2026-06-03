@@ -66,7 +66,8 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
     recognition.continuous = false
     recognition.interimResults = false
 
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (e: any) => {
       const transcript = e.results[0][0].transcript
       setInput(prev => prev ? `${prev} ${transcript}` : transcript)
     }
