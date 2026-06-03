@@ -26,9 +26,16 @@ function getInitials(email: string): string {
 
 const MENU_ITEMS = [
   { icon: User,           label: 'Profil' },
-  { icon: GraduationCap,  label: 'Nauczyciel' },
+  { icon: GraduationCap,  label: 'Nauczyciele' },
   { icon: ShoppingBag,    label: 'Sklep' },
   { icon: Settings,       label: 'Ustawienia' },
+]
+
+const HOUSES = [
+  { id: 'gryffindor', name: 'Gryffindor', emoji: '🦁', color: '#C41E3A', bg: 'rgba(196,30,58,0.15)' },
+  { id: 'slytherin',  name: 'Slytherin',  emoji: '🐍', color: '#2EAD6E', bg: 'rgba(46,173,110,0.12)' },
+  { id: 'hufflepuff', name: 'Hufflepuff', emoji: '🦡', color: '#ECB939', bg: 'rgba(236,185,57,0.15)' },
+  { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🦅', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)' },
 ]
 
 export function App() {
@@ -38,6 +45,27 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [username, setUsername] = useState('')
+  const [usernameInput, setUsernameInput] = useState('')
+  const [house, setHouse] = useState('')
+
+  useEffect(() => {
+    const savedName = localStorage.getItem('magic_diary_username')
+    const savedHouse = localStorage.getItem('magic_diary_house')
+    if (savedName) { setUsername(savedName); setUsernameInput(savedName) }
+    if (savedHouse) setHouse(savedHouse)
+  }, [])
+
+  function saveMobileUsername() {
+    localStorage.setItem('magic_diary_username', usernameInput)
+    setUsername(usernameInput)
+  }
+
+  function selectMobileHouse(id: string) {
+    localStorage.setItem('magic_diary_house', id)
+    setHouse(id)
+  }
 
   // Auth listener
   useEffect(() => {
@@ -214,16 +242,12 @@ export function App() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontFamily: "'Cinzel', serif", fontSize: 18, color: '#1A0A06', fontWeight: 600,
                 }}>
-                  {getInitials(userEmail)}
+                  {username ? username.slice(0, 2).toUpperCase() : getInitials(userEmail)}
                 </div>
                 <div className="min-w-0">
                   <p style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: '#C9993F', letterSpacing: '0.05em' }}
                     className="truncate capitalize">
-                    {userEmail.split('@')[0]}
-                  </p>
-                  <p style={{ fontFamily: "'Lora', serif", fontSize: 11, color: 'rgba(201,153,63,0.4)' }}
-                    className="truncate">
-                    {userEmail}
+                    {username || userEmail.split('@')[0]}
                   </p>
                 </div>
               </div>
@@ -233,6 +257,9 @@ export function App() {
                 {MENU_ITEMS.map(({ icon: Icon, label }) => (
                   <button
                     key={label}
+                    onClick={() => {
+                      if (label === 'Ustawienia') { setMenuOpen(false); setSettingsOpen(true) }
+                    }}
                     className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-colors"
                     style={{ color: '#C9993F' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,153,63,0.08)')}
@@ -262,6 +289,101 @@ export function App() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* ===== Settings full-screen overlay (mobile) ===== */}
+      <AnimatePresence>
+        {settingsOpen && (
+          <motion.div
+            className="fixed inset-0 z-[60] flex flex-col md:hidden"
+            style={{ background: 'linear-gradient(180deg, #2C0F0A 0%, #1A0A06 100%)' }}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ duration: 0.2 }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-6 pb-4 border-b border-[rgba(201,153,63,0.15)]">
+              <div className="flex items-center gap-3">
+                <Settings size={16} style={{ color: '#C9993F' }} />
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: '#C9993F', letterSpacing: '0.1em' }}>
+                  USTAWIENIA
+                </span>
+              </div>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className="p-2 rounded-xl hover:bg-[rgba(201,153,63,0.1)] transition-colors"
+                style={{ color: 'rgba(201,153,63,0.5)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Settings content */}
+            <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
+
+              {/* Nazwa użytkownika */}
+              <div className="rounded-2xl border border-[rgba(201,153,63,0.15)]"
+                style={{ background: 'rgba(255,255,255,0.03)' }}>
+                <div className="px-4 pt-4 pb-5">
+                  <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.12em' }}
+                    className="mb-3 uppercase">Nazwa użytkownika</p>
+                  <input
+                    type="text"
+                    value={usernameInput}
+                    onChange={e => setUsernameInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && saveMobileUsername()}
+                    placeholder={userEmail.split('@')[0]}
+                    style={{ fontFamily: "'Lora', serif", fontSize: 15, background: 'rgba(255,255,255,0.05)' }}
+                    className="w-full px-4 py-3 rounded-xl border border-[rgba(201,153,63,0.2)] text-[#D4A96A] placeholder:text-[#7A5C42]/50 outline-none focus:border-[#C9993F]/50 transition-colors mb-3"
+                  />
+                  <button
+                    onClick={saveMobileUsername}
+                    style={{ fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.08em' }}
+                    className="w-full py-3 rounded-xl bg-[#C9993F] text-[#1A0A06] font-semibold hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
+                  >
+                    Zapisz
+                  </button>
+                </div>
+              </div>
+
+              {/* Wybór domu */}
+              <div className="rounded-2xl border border-[rgba(201,153,63,0.15)]"
+                style={{ background: 'rgba(255,255,255,0.03)' }}>
+                <div className="px-4 pt-4 pb-5">
+                  <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.12em' }}
+                    className="mb-3 uppercase">Twój Dom</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {HOUSES.map(h => {
+                      const selected = house === h.id
+                      return (
+                        <button
+                          key={h.id}
+                          onClick={() => selectMobileHouse(h.id)}
+                          className="flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all active:scale-[0.97]"
+                          style={{
+                            borderColor: selected ? h.color : 'rgba(201,153,63,0.12)',
+                            background: selected ? h.bg : 'rgba(255,255,255,0.02)',
+                          }}
+                        >
+                          <span style={{ fontSize: 26 }}>{h.emoji}</span>
+                          <span style={{
+                            fontFamily: "'Cinzel', serif", fontSize: 10,
+                            color: selected ? h.color : 'rgba(201,153,63,0.55)',
+                            letterSpacing: '0.06em',
+                          }}>
+                            {h.name}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

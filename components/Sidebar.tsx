@@ -1,8 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { Feather, Search, User, GraduationCap, ShoppingBag, Settings, LogOut, ChevronRight } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Feather, Search, User, GraduationCap, ShoppingBag, Settings, LogOut, ChevronRight, ChevronLeft, X } from 'lucide-react'
 import { Entry, MOOD_EMOJI } from '@/types/entry'
+
+const PL_MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
+  'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']
 
 function fmtShort(iso: string): string {
   const d = new Date(iso)
@@ -29,21 +32,63 @@ interface SidebarProps {
 
 const NAV_ITEMS = [
   { icon: User,          label: 'Profil' },
-  { icon: GraduationCap, label: 'Nauczyciel' },
+  { icon: GraduationCap, label: 'Nauczyciele' },
   { icon: ShoppingBag,   label: 'Sklep' },
   { icon: Settings,      label: 'Ustawienia' },
 ]
 
+const HOUSES = [
+  { id: 'gryffindor', name: 'Gryffindor', emoji: '🦁', color: '#C41E3A', bg: 'rgba(196,30,58,0.15)' },
+  { id: 'slytherin',  name: 'Slytherin',  emoji: '🐍', color: '#2EAD6E', bg: 'rgba(46,173,110,0.12)' },
+  { id: 'hufflepuff', name: 'Hufflepuff', emoji: '🦡', color: '#ECB939', bg: 'rgba(236,185,57,0.15)' },
+  { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🦅', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)' },
+]
+
 export function Sidebar({ entries, selectedEntryId, onSelectEntry, onNewEntry, userEmail, onLogout }: SidebarProps) {
   const [q, setQ] = useState('')
+  const [monthOffset, setMonthOffset] = useState(0)
+  const [activeNav, setActiveNav] = useState<string | null>(null)
+  const [username, setUsername] = useState('')
+  const [usernameInput, setUsernameInput] = useState('')
+  const [house, setHouse] = useState('')
 
-  const filtered = entries.filter(e =>
-    !q || e.title.toLowerCase().includes(q.toLowerCase()) ||
-    e.content.toLowerCase().includes(q.toLowerCase())
-  )
+  useEffect(() => {
+    const savedName = localStorage.getItem('magic_diary_username')
+    const savedHouse = localStorage.getItem('magic_diary_house')
+    if (savedName) { setUsername(savedName); setUsernameInput(savedName) }
+    if (savedHouse) setHouse(savedHouse)
+  }, [])
 
-  const initials = getInitials(userEmail)
-  const displayName = userEmail.split('@')[0]
+  function saveUsername() {
+    localStorage.setItem('magic_diary_username', usernameInput)
+    setUsername(usernameInput)
+  }
+
+  function selectHouse(id: string) {
+    localStorage.setItem('magic_diary_house', id)
+    setHouse(id)
+  }
+
+  const now = new Date()
+  const activeYear  = now.getFullYear() + Math.floor((now.getMonth() + monthOffset) / 12)
+  const activeMonth = ((now.getMonth() + monthOffset) % 12 + 12) % 12
+  const activeKey   = `${activeYear}-${String(activeMonth + 1).padStart(2, '0')}`
+
+  const monthsWithEntries = useMemo(() => {
+    const set = new Set<string>()
+    entries.forEach(e => set.add(e.date.slice(0, 7)))
+    return set
+  }, [entries])
+
+  const filtered = entries
+    .filter(e => e.date.startsWith(activeKey))
+    .filter(e =>
+      !q || e.title.toLowerCase().includes(q.toLowerCase()) ||
+      e.content.toLowerCase().includes(q.toLowerCase())
+    )
+
+  const initials = username ? username.slice(0, 2).toUpperCase() : getInitials(userEmail)
+  const displayName = username || userEmail.split('@')[0]
 
   return (
     <div
@@ -71,31 +116,120 @@ export function Sidebar({ entries, selectedEntryId, onSelectEntry, onNewEntry, u
               className="truncate capitalize">
               {displayName}
             </p>
-            <p style={{ fontFamily: "'Lora', serif", fontSize: 10, color: 'rgba(201,153,63,0.4)' }}
-              className="truncate">
-              {userEmail}
-            </p>
           </div>
         </div>
       </div>
 
       {/* ── Nav items ── */}
       <div className="px-2 py-2 border-b border-[rgba(201,169,110,0.12)]">
-        {NAV_ITEMS.map(({ icon: Icon, label }) => (
-          <button
-            key={label}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 group hover:bg-[rgba(201,153,63,0.08)]"
-          >
-            <div className="flex items-center gap-2.5">
-              <Icon size={14} style={{ color: 'rgba(201,153,63,0.5)' }} />
-              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: 'rgba(201,153,63,0.7)', letterSpacing: '0.06em' }}>
-                {label}
+        {NAV_ITEMS.map(({ icon: Icon, label }) => {
+          const isActive = activeNav === label
+          return (
+            <button
+              key={label}
+              onClick={() => setActiveNav(label)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 group hover:bg-[rgba(201,153,63,0.08)]"
+            >
+              <div className="flex items-center gap-2.5">
+                <Icon size={14} style={{ color: 'rgba(201,153,63,0.5)' }} />
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: 'rgba(201,153,63,0.7)', letterSpacing: '0.06em' }}>
+                  {label}
+                </span>
+              </div>
+              <ChevronRight size={12} style={{ color: 'rgba(201,153,63,0.25)' }} />
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Settings full-screen overlay ── */}
+      {activeNav === 'Ustawienia' && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col"
+          style={{ background: 'linear-gradient(180deg, #2C0F0A 0%, #1A0A06 100%)' }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-6 pb-4 border-b border-[rgba(201,153,63,0.15)]">
+            <div className="flex items-center gap-3">
+              <Settings size={16} style={{ color: '#C9993F' }} />
+              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: '#C9993F', letterSpacing: '0.1em' }}>
+                USTAWIENIA
               </span>
             </div>
-            <ChevronRight size={12} style={{ color: 'rgba(201,153,63,0.25)' }} />
-          </button>
-        ))}
-      </div>
+            <button
+              onClick={() => setActiveNav(null)}
+              className="p-2 rounded-xl hover:bg-[rgba(201,153,63,0.1)] transition-colors"
+              style={{ color: 'rgba(201,153,63,0.5)' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Settings list */}
+          <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
+
+            {/* Nazwa użytkownika */}
+            <div className="rounded-2xl border border-[rgba(201,153,63,0.15)]"
+              style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <div className="px-4 pt-4 pb-5">
+                <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.12em' }}
+                  className="mb-3 uppercase">Nazwa użytkownika</p>
+                <input
+                  type="text"
+                  value={usernameInput}
+                  onChange={e => setUsernameInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveUsername()}
+                  placeholder={userEmail.split('@')[0]}
+                  style={{ fontFamily: "'Lora', serif", fontSize: 15, background: 'rgba(255,255,255,0.05)' }}
+                  className="w-full px-4 py-3 rounded-xl border border-[rgba(201,153,63,0.2)] text-[#D4A96A] placeholder:text-[#7A5C42]/50 outline-none focus:border-[#C9993F]/50 transition-colors mb-3"
+                />
+                <button
+                  onClick={saveUsername}
+                  style={{ fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.08em' }}
+                  className="w-full py-3 rounded-xl bg-[#C9993F] text-[#1A0A06] font-semibold hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
+                >
+                  Zapisz
+                </button>
+              </div>
+            </div>
+
+            {/* Wybór domu */}
+            <div className="rounded-2xl border border-[rgba(201,153,63,0.15)]"
+              style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <div className="px-4 pt-4 pb-5">
+                <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.12em' }}
+                  className="mb-3 uppercase">Twój Dom</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {HOUSES.map(h => {
+                    const selected = house === h.id
+                    return (
+                      <button
+                        key={h.id}
+                        onClick={() => selectHouse(h.id)}
+                        className="flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all active:scale-[0.97]"
+                        style={{
+                          borderColor: selected ? h.color : 'rgba(201,153,63,0.12)',
+                          background: selected ? h.bg : 'rgba(255,255,255,0.02)',
+                        }}
+                      >
+                        <span style={{ fontSize: 26 }}>{h.emoji}</span>
+                        <span style={{
+                          fontFamily: "'Cinzel', serif", fontSize: 10,
+                          color: selected ? h.color : 'rgba(201,153,63,0.55)',
+                          letterSpacing: '0.06em',
+                        }}>
+                          {h.name}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* ── Nowy Wpis ── */}
       <div className="px-4 pt-4 pb-3">
@@ -129,6 +263,38 @@ export function Sidebar({ entries, selectedEntryId, onSelectEntry, onNewEntry, u
         <span style={{ fontFamily: "'IM Fell English SC', serif", color: '#C9993F', fontSize: 13, letterSpacing: '0.08em' }}>
           Spis Wspomnień
         </span>
+      </div>
+
+      {/* ── Month navigator ── */}
+      <div className="flex items-center justify-between px-3 pb-2">
+        <button
+          onClick={() => setMonthOffset(o => o - 1)}
+          className="p-1 rounded-lg hover:bg-[rgba(201,153,63,0.12)] transition-colors"
+          style={{ color: '#7A5C42' }}
+        >
+          <ChevronLeft size={16} />
+        </button>
+
+        <div className="flex flex-col items-center gap-0.5">
+          <span style={{ fontFamily: "'IM Fell English SC', serif", fontSize: 13, color: '#C9993F', letterSpacing: '0.06em' }}>
+            {PL_MONTHS[activeMonth]}
+          </span>
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.1em' }}>
+            {activeYear}
+          </span>
+          {monthsWithEntries.has(activeKey) && (
+            <div className="w-1 h-1 rounded-full bg-[#C9993F]" />
+          )}
+        </div>
+
+        <button
+          onClick={() => setMonthOffset(o => o + 1)}
+          disabled={monthOffset >= 0}
+          className="p-1 rounded-lg hover:bg-[rgba(201,153,63,0.12)] transition-colors disabled:opacity-30 disabled:cursor-default"
+          style={{ color: '#7A5C42' }}
+        >
+          <ChevronRight size={16} />
+        </button>
       </div>
 
       {/* ── Entries scroll ── */}
