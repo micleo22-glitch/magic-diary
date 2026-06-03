@@ -26,7 +26,8 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
   const [recording, setRecording] = useState(false)
   const [focused, setFocused] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
