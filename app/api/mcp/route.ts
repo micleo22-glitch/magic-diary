@@ -215,7 +215,7 @@ GŁOS: teatralne pauzy, chłodna ironia, metafory alchemiczne. Kończ zawsze chi
         }),
       },
       stopWhen: stepCountIs(3),
-      maxTokens: 350,
+      maxOutputTokens: 350,
       temperature: 0.85,
     })
 
@@ -284,7 +284,7 @@ export async function POST(req: NextRequest) {
         jsonrpc: '2.0',
         id,
         result: {
-          content: [{ type: 'text', text: toolResult.error.message }],
+          content: [{ type: 'text', text: (toolResult as { error: { message: string } }).error.message }],
           isError: true,
         },
       })

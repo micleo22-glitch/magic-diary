@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
       }),
     },
     stopWhen: stepCountIs(3),
-    maxTokens: 350,
+    maxOutputTokens: 350,
     temperature: 0.85,
   })
 
