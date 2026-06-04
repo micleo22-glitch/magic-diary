@@ -285,6 +285,7 @@ export function App() {
           onEdit={handleEdit}
           onDelete={handleDeleted}
           onBack={() => setView('entries')}
+          theme={houseTheme}
         />
       )
     }

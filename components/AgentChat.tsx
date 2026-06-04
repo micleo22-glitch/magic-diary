@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Wand2, Mic, MicOff } from 'lucide-react'
 import { Entry } from '@/types/entry'
 import { supabase } from '@/lib/supabase'
+import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -12,15 +13,16 @@ interface Message {
 
 interface AgentChatProps {
   entry: Entry
+  theme?: HouseTheme
 }
 
-export function AgentChat({ entry }: AgentChatProps) {
+export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
       text: entry.title
-        ? `Co cię skłoniło do napisania o "${entry.title}"? Mów, nie mam całego dnia.`
-        : 'Co cię skłoniło do napisania tego dzisiaj? Mów.',
+        ? `"${entry.title}"... Może chciałbyś mi się z tego wytłumaczyć?`
+        : 'Napisałeś to. Słucham — może chciałbyś mi się z tego wytłumaczyć?',
     },
   ])
   const [input, setInput] = useState('')
@@ -111,14 +113,15 @@ export function AgentChat({ entry }: AgentChatProps) {
   return (
     <div
       style={{
-        background: '#2C0F0A',
-        borderTop: '1px solid rgba(201,169,110,0.18)',
+        background: theme.navBg,
+        borderTop: `1px solid ${theme.borderColor}`,
+        transition: 'background 0.4s ease',
       }}
     >
       {/* Header */}
       <div
         className="flex items-center gap-2 px-6 py-3"
-        style={{ borderBottom: '1px solid rgba(201,169,110,0.1)' }}
+        style={{ borderBottom: `1px solid ${theme.borderColor}` }}
       >
         <Wand2 size={13} style={{ color: '#C9993F' }} />
         <span
@@ -157,9 +160,9 @@ export function AgentChat({ entry }: AgentChatProps) {
                 lineHeight: 1.65,
                 padding: '10px 14px',
                 borderRadius: m.role === 'user' ? '14px 14px 3px 14px' : '14px 14px 14px 3px',
-                background: m.role === 'user' ? '#C9993F' : '#3D1A10',
+                background: m.role === 'user' ? theme.primary : 'rgba(255,255,255,0.05)',
                 color: m.role === 'user' ? '#1A0A06' : '#EAD9B8',
-                border: m.role === 'user' ? 'none' : '1px solid rgba(201,169,110,0.15)',
+                border: m.role === 'user' ? 'none' : `1px solid ${theme.borderColor}`,
               }}
             >
               {m.text}
@@ -173,9 +176,9 @@ export function AgentChat({ entry }: AgentChatProps) {
               style={{
                 padding: '10px 18px',
                 borderRadius: '14px 14px 14px 3px',
-                background: '#3D1A10',
-                border: '1px solid rgba(201,169,110,0.15)',
-                color: '#C9993F',
+                background: 'rgba(255,255,255,0.05)',
+                border: `1px solid ${theme.borderColor}`,
+                color: theme.primary,
                 fontSize: 20,
                 letterSpacing: 5,
                 lineHeight: 1,
@@ -191,7 +194,7 @@ export function AgentChat({ entry }: AgentChatProps) {
       {/* Input row */}
       <div
         className="px-5 py-3 flex gap-2 items-center"
-        style={{ borderTop: '1px solid rgba(201,169,110,0.1)' }}
+        style={{ borderTop: `1px solid ${theme.borderColor}` }}
       >
         <input
           value={input}
@@ -202,8 +205,8 @@ export function AgentChat({ entry }: AgentChatProps) {
           placeholder="Napisz do Snape'a..."
           style={{
             flex: 1,
-            background: '#1A0A06',
-            border: `1px solid ${focused ? 'rgba(201,153,63,0.55)' : 'rgba(201,169,110,0.22)'}`,
+            background: 'rgba(0,0,0,0.25)',
+            border: `1px solid ${focused ? theme.primary : theme.borderColor}`,
             borderRadius: 10,
             padding: '9px 13px',
             fontFamily: "'Lora', serif",
@@ -211,7 +214,7 @@ export function AgentChat({ entry }: AgentChatProps) {
             color: '#EAD9B8',
             outline: 'none',
             transition: 'border-color 0.15s ease',
-            caretColor: '#C9993F',
+            caretColor: theme.primary,
           }}
         />
 
@@ -227,9 +230,9 @@ export function AgentChat({ entry }: AgentChatProps) {
             alignItems: 'center',
             justifyContent: 'center',
             borderRadius: 10,
-            border: `1px solid ${recording ? '#C9993F' : 'rgba(201,153,63,0.2)'}`,
-            background: recording ? 'rgba(201,153,63,0.15)' : 'transparent',
-            color: recording ? '#C9993F' : 'rgba(201,153,63,0.4)',
+            border: `1px solid ${recording ? theme.primary : theme.borderColor}`,
+            background: recording ? theme.primaryDim : 'transparent',
+            color: recording ? theme.primary : theme.borderColor,
             cursor: 'pointer',
             transition: 'all 0.15s ease',
             animation: recording ? 'micPulse 1.2s ease-in-out infinite' : 'none',
@@ -249,10 +252,10 @@ export function AgentChat({ entry }: AgentChatProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: input.trim() ? 'rgba(201,153,63,0.18)' : 'transparent',
-            border: `1px solid ${input.trim() ? '#C9993F' : 'rgba(201,153,63,0.2)'}`,
+            background: input.trim() ? theme.primaryDim : 'transparent',
+            border: `1px solid ${input.trim() ? theme.primary : theme.borderColor}`,
             borderRadius: 10,
-            color: input.trim() ? '#C9993F' : 'rgba(201,153,63,0.25)',
+            color: input.trim() ? theme.primary : theme.borderColor,
             cursor: input.trim() ? 'pointer' : 'default',
             transition: 'all 0.15s ease',
           }}

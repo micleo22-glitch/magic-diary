@@ -7,6 +7,7 @@ import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
 import { AgentChat } from './AgentChat'
 import { toast } from '@/lib/toast'
+import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
 
 function fmtFull(iso: string): string {
   const d = new Date(iso)
@@ -21,9 +22,10 @@ interface EntryViewProps {
   onEdit: (e: Entry) => void
   onDelete: () => void
   onBack: () => void
+  theme?: HouseTheme
 }
 
-export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
+export function EntryView({ entry, onEdit, onDelete, onBack, theme = DEFAULT_THEME }: EntryViewProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -167,7 +169,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
         </div>
       </div>
 
-      <AgentChat entry={entry} />
+      <AgentChat entry={entry} theme={theme} />
     </motion.div>
   )
 }
