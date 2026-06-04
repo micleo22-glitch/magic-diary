@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Feather, Search, User, GraduationCap, ShoppingBag, Settings,
   LogOut, ChevronRight, ChevronLeft, X, Download, Trash2, Mail,
@@ -91,6 +91,8 @@ export function Sidebar({
   onUsernameChange, onHouseChange, onExport, onDeleteAll,
 }: SidebarProps) {
   const [q, setQ]                       = useState('')
+  const sidebarSearchRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { sidebarSearchRef.current?.blur() }, [])
   const [monthOffset, setMonthOffset]   = useState(0)
   const [activeNav, setActiveNav]       = useState<string | null>(null)
   const [localUsername, setLocalUsername] = useState(username)
@@ -468,9 +470,10 @@ export function Sidebar({
             type="text"
             value={q}
             onChange={e => setQ(e.target.value)}
+            ref={sidebarSearchRef}
             placeholder="Szukaj..."
             style={{ fontFamily: "'Lora', serif", fontSize: 13, background: 'rgba(255,255,255,0.04)' }}
-            className="w-full pl-8 pr-3 py-2 rounded-xl text-[#D4A96A] placeholder:text-[#BFA882]/75 outline-none transition-colors border"
+            className="w-full pl-8 pr-3 py-2 rounded-xl text-[#D4A96A] placeholder:text-[#BFA882]/75 outline-none transition-colors border border-[rgba(201,169,110,0.15)]"
             onFocus={e => (e.currentTarget.style.borderColor = theme.primary + '60')}
             onBlur={e => (e.currentTarget.style.borderColor = 'rgba(201,169,110,0.15)')}
           />

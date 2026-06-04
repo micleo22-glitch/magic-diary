@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Search, BookOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Entry, MOOD_EMOJI } from '@/types/entry'
@@ -25,6 +25,8 @@ export function EntriesList({
   entries, selectedEntryId, onSelectEntry, onNewEntry, onEntryDeleted,
 }: EntriesListProps) {
   const [q, setQ] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { searchRef.current?.blur() }, [])
   const [moodFilter, setMoodFilter] = useState<number | null>(null)
   const [sort, setSort] = useState<Sort>(() => {
     if (typeof window !== 'undefined') {
@@ -174,11 +176,11 @@ export function EntriesList({
         <div className="relative mb-3">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A5C42]" />
           <input
+            ref={searchRef}
             type="text"
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Szukaj wspomnień..."
-            tabIndex={-1}
             style={{ fontFamily: "'Lora', serif", fontSize: 16, fontWeight: 500 }}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#E8DCC0] border border-[rgba(201,169,110,0.3)] text-[#1A0A06] placeholder:text-[#7A5C42]/70 outline-none focus:border-[#C9993F] transition-colors"
           />
