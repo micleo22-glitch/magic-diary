@@ -17,10 +17,57 @@ interface AgentChatProps {
   theme?: HouseTheme
 }
 
-const OPENING_LINE = (title: string) =>
-  title
-    ? `"${title}"... Może chciałbyś mi się z tego wytłumaczyć?`
-    : 'Napisałeś to. Słucham — może chciałbyś mi się z tego wytłumaczyć?'
+type MoodFn = (title: string, mood: number | null) => string
+
+const OPENING_WITH_TITLE: MoodFn[] = [
+  // cytuje tytuł (5)
+  (t) => `"${t}"... Może chciałbyś mi się z tego wytłumaczyć?`,
+  (t) => `"${t}"... Interesujący tytuł. Co tak naprawdę chciałeś przez to powiedzieć?`,
+  (t) => `"${t}"... Napisałeś to. Ja czytam między wierszami. Mów.`,
+  (t) => `"${t}"... Hmm. Nie spodziewałem się, że aż do tego zajdziemy. Słucham.`,
+  (t) => `"${t}"... Cóż za odkrywczy tytuł. Zatem — co kryje się za tym słowem?`,
+  // reaguje na nastrój, ignoruje tytuł (5)
+  (_t, m) => m && m <= 2
+    ? 'Widzę, że coś ci ciąży. Nie mam zamiaru czekać — mów.'
+    : m && m >= 4
+    ? 'Rzadko widzę u ciebie coś pozytywnego. Ciekawe, czy to trwałe. Mów.'
+    : 'Kolejny dzień, kolejny wpis. Co tym razem chcesz mi powiedzieć?',
+  (_t, m) => m && m <= 2
+    ? 'Nie musisz udawać, że jest dobrze. Ja widzę inaczej. Zacznij mówić.'
+    : m && m >= 4
+    ? 'Dobre samopoczucie. Rzadkość. Co za tym stoi?'
+    : 'To, co napisałeś, mówi więcej niż myślisz. Zacznijmy od początku.',
+  (_t, m) => m && m <= 2
+    ? 'Piszesz, kiedy jest źle. To mówi samo za siebie. Co się stało?'
+    : m && m >= 4
+    ? 'Widzę, że dziś jest lepiej. Powiedz mi — skąd ta zmiana?'
+    : 'Emocje masz ukryte głęboko. Ale nie ode mnie. Zacznij.',
+  () => 'Napisałeś. Teraz czas na rozmowę — czy tego chciałeś, czy nie.',
+  () => 'Coś cię skłoniło do napisania tego. Nie wierzę w przypadki. Słucham.',
+]
+
+type MoodFnNoTitle = (mood: number | null) => string
+
+const OPENING_WITHOUT_TITLE: MoodFnNoTitle[] = [
+  () => 'Napisałeś to. Słucham — może chciałbyś mi się z tego wytłumaczyć?',
+  () => 'Bez tytułu. Charakterystyczne. Mów — co cię do tego skłoniło?',
+  () => 'Nie zadałeś sobie nawet trudu, by to nazwać. Mimo to — słucham.',
+  () => 'Kolejny wpis bez tytułu. Nie mam zamiaru się domyślać. Zacznij mówić.',
+  (m) => m && m <= 2
+    ? 'Piszesz, bo coś boli. Nie musisz tego ukrywać. Mów.'
+    : m && m >= 4
+    ? 'Dobry nastrój, brak tytułu. Ciekawe połączenie. Słucham.'
+    : 'Więc coś napisałeś. Wątpię, by to był przypadek. Słucham cię.',
+]
+
+const OPENING_LINE = (title: string, mood: number | null) => {
+  if (title) {
+    const fn = OPENING_WITH_TITLE[Math.floor(Math.random() * OPENING_WITH_TITLE.length)]
+    return fn(title, mood)
+  }
+  const fn = OPENING_WITHOUT_TITLE[Math.floor(Math.random() * OPENING_WITHOUT_TITLE.length)]
+  return fn(mood)
+}
 
 export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
@@ -49,7 +96,7 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
       if (history.length > 0) {
         setMessages(history.map(m => ({ role: m.role, text: m.text })))
       } else {
-        const opening = OPENING_LINE(entry.title)
+        const opening = OPENING_LINE(entry.title, entry.mood ?? null)
         setMessages([{ role: 'assistant', text: opening }])
         saveChatMessage(entry.id, 'assistant', opening)
       }
