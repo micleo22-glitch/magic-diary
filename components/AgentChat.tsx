@@ -81,6 +81,64 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null)
 
+  // Typewriter state
+  const typewriterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const streamBufferRef = useRef('')   // full text received from stream
+  const displayedLenRef = useRef(0)    // how many chars are shown so far
+  const streamDoneRef = useRef(false)  // has the stream finished?
+
+  const stopTypewriter = () => {
+    if (typewriterTimerRef.current) {
+      clearTimeout(typewriterTimerRef.current)
+      typewriterTimerRef.current = null
+    }
+  }
+
+  const startTypewriter = (msgIndex: number, onFinish: (full: string) => void) => {
+    stopTypewriter()
+    streamBufferRef.current = ''
+    displayedLenRef.current = 0
+    streamDoneRef.current = false
+
+    const tick = () => {
+      const full = streamBufferRef.current
+      const shown = displayedLenRef.current
+
+      // Nothing new yet — wait
+      if (shown >= full.length) {
+        if (streamDoneRef.current) {
+          onFinish(full)
+          return
+        }
+        typewriterTimerRef.current = setTimeout(tick, 30)
+        return
+      }
+
+      const char = full[shown]
+      displayedLenRef.current = shown + 1
+      const newText = full.slice(0, displayedLenRef.current)
+
+      setMessages(prev => {
+        const next = [...prev]
+        next[msgIndex] = { role: 'assistant', text: newText }
+        return next
+      })
+
+      // Dramatic Snape pauses
+      let delay = 22
+      if (char === '.' || char === '!' || char === '?') delay = 260
+      else if (char === '—') delay = 220
+      else if (char === ',') delay = 130
+      else if (char === ':' || char === ';') delay = 110
+      else if (char === '\n') delay = 160
+      // "..." — already covered per-dot above (each dot = 260ms)
+
+      typewriterTimerRef.current = setTimeout(tick, delay)
+    }
+
+    tick()
+  }
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -104,7 +162,10 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
       }
       setHistoryLoaded(true)
     })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      stopTypewriter()
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry.id])
 
@@ -141,29 +202,28 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
         return
       }
 
-      // Stream response — add empty assistant bubble, fill progressively
+      // Add empty bubble and start typewriter before stream drains
       setMessages(prev => [...prev, { role: 'assistant' as const, text: '' }])
       setLoading(false)
 
+      const msgIndex = updated.length  // index of the new assistant bubble
+      const entryId = entry.id
+
+      // Start typewriter — it reads from streamBufferRef at its own pace
+      startTypewriter(msgIndex, (fullText) => {
+        if (fullText) saveChatMessage(entryId, 'assistant', fullText)
+      })
+
+      // Drain stream into buffer
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
-      let assistantText = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        assistantText += chunk
-        setMessages(prev => {
-          const next = [...prev]
-          next[next.length - 1] = { role: 'assistant', text: assistantText }
-          return next
-        })
+        streamBufferRef.current += decoder.decode(value, { stream: true })
       }
-
-      if (assistantText) {
-        saveChatMessage(entry.id, 'assistant', assistantText)
-      }
+      streamDoneRef.current = true
     } catch {
       const errText = 'Coś poszło nie tak. Spróbuj ponownie.'
       setMessages(prev => [...prev, { role: 'assistant', text: errText }])
