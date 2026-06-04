@@ -6,6 +6,7 @@ export interface Entry {
   date: string // ISO 8601: "2026-05-28"
   createdAt: string // ISO 8601 timestamp
   updatedAt: string // ISO 8601 timestamp
+  isFavorite?: boolean
 }
 
 export const MOOD_DATA: { value: number; emoji: string; label: string }[] = [

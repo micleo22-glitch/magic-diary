@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Feather, Search, User, GraduationCap, ShoppingBag, Settings,
-  LogOut, ChevronRight, ChevronLeft, X, Download, Trash2, Mail,
+  LogOut, ChevronRight, ChevronLeft, X, Download, Trash2, Mail, Heart,
 } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { HouseTheme, DEFAULT_THEME, streakLabel } from '@/lib/houseTheme'
@@ -61,6 +61,7 @@ interface SidebarProps {
   selectedEntryId: string | null
   onSelectEntry: (id: string) => void
   onNewEntry: () => void
+  onToggleFavorite: (id: string) => void
   userEmail: string
   username: string
   house: string
@@ -86,14 +87,23 @@ function SectionCard({ label, children }: { label: string; children: React.React
 }
 
 export function Sidebar({
-  entries, selectedEntryId, onSelectEntry, onNewEntry,
+  entries, selectedEntryId, onSelectEntry, onNewEntry, onToggleFavorite,
   userEmail, username, house, theme = DEFAULT_THEME, onLogout,
   onUsernameChange, onHouseChange, onExport, onDeleteAll,
 }: SidebarProps) {
+  type Sort = 'newest' | 'oldest' | 'mood'
+  const SORT_KEY = 'magic_diary_sort'
+
   const [q, setQ]                       = useState('')
   const sidebarSearchRef = useRef<HTMLInputElement>(null)
   useEffect(() => { sidebarSearchRef.current?.blur() }, [])
   const [monthOffset, setMonthOffset]   = useState(0)
+  const [moodFilter, setMoodFilter]     = useState<number | null>(null)
+  const [favOnly, setFavOnly]           = useState(false)
+  const [sort, setSort]                 = useState<Sort>(() => {
+    if (typeof window !== 'undefined') return (localStorage.getItem(SORT_KEY) as Sort) || 'newest'
+    return 'newest'
+  })
   const [activeNav, setActiveNav]       = useState<string | null>(null)
   const [localUsername, setLocalUsername] = useState(username)
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
@@ -112,10 +122,29 @@ export function Sidebar({
     return set
   }, [entries])
 
-  const filtered = entries
-    .filter(e => e.date.startsWith(activeKey))
+  const entriesInMonth = entries.filter(e => e.date.startsWith(activeKey))
+
+  const baseEntries = favOnly ? entries.filter(e => e.isFavorite) : entriesInMonth
+
+  const moodsInMonth = useMemo(() => {
+    const set = new Set<number>()
+    baseEntries.forEach(e => { if (e.mood) set.add(e.mood) })
+    return set
+  }, [baseEntries])
+
+  useEffect(() => { localStorage.setItem(SORT_KEY, sort) }, [sort])
+
+  const sortLabels: Record<Sort, string> = { newest: 'Najnowsze', oldest: 'Najstarsze', mood: 'Nastrój' }
+
+  const filtered = baseEntries
+    .filter(e => moodFilter === null || e.mood === moodFilter)
     .filter(e => !q || e.title.toLowerCase().includes(q.toLowerCase()) ||
       e.content.toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => {
+      if (sort === 'newest') return +new Date(b.createdAt) - +new Date(a.createdAt)
+      if (sort === 'oldest') return +new Date(a.createdAt) - +new Date(b.createdAt)
+      return (b.mood ?? 0) - (a.mood ?? 0)
+    })
 
   const houseData  = HOUSES.find(h => h.id === house)
   const initials   = username ? username.slice(0, 2).toUpperCase() : getInitials(userEmail)
@@ -488,7 +517,7 @@ export function Sidebar({
       </div>
 
       {/* ── Month navigator ── */}
-      <div className="flex items-center justify-between px-3 pb-1">
+      <div className={`flex items-center justify-between px-3 pb-1 transition-opacity duration-200 ${favOnly ? 'opacity-30 pointer-events-none' : ''}`}>
         <button onClick={() => setMonthOffset(o => o - 1)}
           className="p-1 rounded-lg transition-colors"
           style={{ color: '#C9A87A' }}
@@ -517,19 +546,86 @@ export function Sidebar({
         </button>
       </div>
 
-      {filtered.length > 0 && (
+      {entriesInMonth.length > 0 && (
         <p className="text-center pb-1"
           style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: `${theme.primary}99`, letterSpacing: '0.1em', fontWeight: 700 }}>
-          {filtered.length === 1 ? '1 wpis' : filtered.length < 5 ? `${filtered.length} wpisy` : `${filtered.length} wpisów`}
+          {entriesInMonth.length === 1 ? '1 wpis' : entriesInMonth.length < 5 ? `${entriesInMonth.length} wpisy` : `${entriesInMonth.length} wpisów`}
         </p>
       )}
+
+      {/* ── Mood filter ── */}
+      {moodsInMonth.size > 0 && (
+        <div className="flex items-center justify-center gap-1.5 px-4 pb-2">
+          {([5, 4, 3, 2, 1] as const).filter(m => moodsInMonth.has(m)).map(m => (
+            <button
+              key={m}
+              onClick={() => setMoodFilter(moodFilter === m ? null : m)}
+              title={`Filtruj: ${MOOD_EMOJI[m]}`}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all duration-150"
+              style={{
+                background: moodFilter === m ? 'rgba(201,153,63,0.3)' : 'rgba(201,153,63,0.08)',
+                border: moodFilter === m ? `1.5px solid ${theme.primary}99` : '1.5px solid transparent',
+                transform: moodFilter === m ? 'scale(1.15)' : 'scale(1)',
+              }}
+            >
+              {MOOD_EMOJI[m]}
+            </button>
+          ))}
+          {moodFilter !== null && (
+            <button
+              onClick={() => setMoodFilter(null)}
+              title="Wyczyść filtr"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-150 hover:scale-110"
+              style={{
+                background: 'rgba(201,153,63,0.15)',
+                border: `1.5px solid ${theme.primary}66`,
+                color: theme.primary,
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Ulubione + Sort pills ── */}
+      <div className="px-3 pb-2 flex flex-wrap gap-1">
+        <button
+          onClick={() => setFavOnly(v => !v)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-full transition-all"
+          style={{
+            fontFamily: "'Cinzel', serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            background: favOnly ? theme.primary : theme.primaryDim,
+            color: favOnly ? '#1A0A06' : theme.primary,
+            border: `1px solid ${favOnly ? theme.primary : theme.borderColor}`,
+          }}
+        >
+          <Heart size={9} fill={favOnly ? 'currentColor' : 'none'} />
+          Ulubione
+        </button>
+        {(Object.keys(sortLabels) as Sort[]).map(s => (
+          <button
+            key={s}
+            onClick={() => setSort(s)}
+            className="px-2.5 py-1 rounded-full transition-all"
+            style={{
+              fontFamily: "'Cinzel', serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+              background: sort === s ? theme.primary : theme.primaryDim,
+              color: sort === s ? '#1A0A06' : theme.primary,
+              border: `1px solid ${sort === s ? theme.primary : theme.borderColor}`,
+            }}
+          >
+            {sortLabels[s]}
+          </button>
+        ))}
+      </div>
 
       {/* ── Entries scroll ── */}
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {filtered.length === 0 ? (
           <p style={{ fontFamily: "'Lora', serif", color: '#C9A87A', fontSize: 12, fontWeight: 500 }}
             className="italic text-center py-8 px-3">
-            {q ? 'Brak wyników.' : 'Brak wpisów w tym miesiącu.'}
+            {favOnly ? 'Brak ulubionych wpisów.' : q || moodFilter ? 'Brak wyników.' : 'Brak wpisów w tym miesiącu.'}
           </p>
         ) : (
           <div className="flex flex-col gap-0.5 mt-1">
@@ -539,7 +635,7 @@ export function Sidebar({
                 <button
                   key={entry.id}
                   onClick={() => onSelectEntry(entry.id)}
-                  className="w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150"
+                  className="group w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150"
                   style={{ background: sel ? theme.selectionBg : 'transparent' }}
                   onMouseEnter={e => !sel && (e.currentTarget.style.background = `${theme.primaryDim}`)}
                   onMouseLeave={e => !sel && (e.currentTarget.style.background = 'transparent')}
@@ -554,9 +650,22 @@ export function Sidebar({
                         {entry.title || 'Bez tytułu'}
                       </p>
                     </div>
-                    {entry.mood ? (
-                      <span className="text-sm flex-shrink-0 mt-0.5">{MOOD_EMOJI[entry.mood]}</span>
-                    ) : null}
+                    <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                      {entry.mood ? (
+                        <span className="text-sm">{MOOD_EMOJI[entry.mood]}</span>
+                      ) : null}
+                      <span
+                        onClick={e => { e.stopPropagation(); onToggleFavorite(entry.id) }}
+                        title={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={e => e.key === 'Enter' && (e.stopPropagation(), onToggleFavorite(entry.id))}
+                        className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${entry.isFavorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                        style={{ color: entry.isFavorite ? theme.primary : 'rgba(201,153,63,0.35)', display: 'inline-flex' }}
+                      >
+                        <Heart size={11} fill={entry.isFavorite ? 'currentColor' : 'none'} />
+                      </span>
+                    </div>
                   </div>
                 </button>
               )

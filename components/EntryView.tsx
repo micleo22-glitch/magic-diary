@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Pencil, Trash2, AlertTriangle, Heart } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
 import { AgentChat } from './AgentChat'
@@ -22,10 +22,11 @@ interface EntryViewProps {
   onEdit: (e: Entry) => void
   onDelete: () => void
   onBack: () => void
+  onToggleFavorite?: () => void
   theme?: HouseTheme
 }
 
-export function EntryView({ entry, onEdit, onDelete, onBack, theme = DEFAULT_THEME }: EntryViewProps) {
+export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, theme = DEFAULT_THEME }: EntryViewProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -55,6 +56,20 @@ export function EntryView({ entry, onEdit, onDelete, onBack, theme = DEFAULT_THE
         </button>
 
         <div className="flex items-center gap-2">
+          {onToggleFavorite && (
+            <button
+              onClick={onToggleFavorite}
+              title={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all"
+              style={{
+                color: entry.isFavorite ? '#C9993F' : 'rgba(122,92,66,0.5)',
+                borderColor: entry.isFavorite ? 'rgba(201,153,63,0.5)' : 'rgba(122,92,66,0.2)',
+                background: entry.isFavorite ? 'rgba(201,153,63,0.1)' : 'transparent',
+              }}
+            >
+              <Heart size={13} fill={entry.isFavorite ? 'currentColor' : 'none'} />
+            </button>
+          )}
           <button
             onClick={() => onEdit(entry)}
             style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}

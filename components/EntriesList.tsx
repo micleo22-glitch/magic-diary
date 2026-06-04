@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Search, BookOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, BookOpen, Plus, ChevronLeft, ChevronRight, Heart } from 'lucide-react'
 import { Entry, MOOD_EMOJI } from '@/types/entry'
 import { EntryCard } from './EntryCard'
 
@@ -19,15 +19,17 @@ interface EntriesListProps {
   onSelectEntry: (id: string) => void
   onNewEntry: () => void
   onEntryDeleted: () => void
+  onToggleFavorite: (id: string) => void
 }
 
 export function EntriesList({
-  entries, selectedEntryId, onSelectEntry, onNewEntry, onEntryDeleted,
+  entries, selectedEntryId, onSelectEntry, onNewEntry, onEntryDeleted, onToggleFavorite,
 }: EntriesListProps) {
   const [q, setQ] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   useEffect(() => { searchRef.current?.blur() }, [])
   const [moodFilter, setMoodFilter] = useState<number | null>(null)
+  const [favOnly, setFavOnly] = useState(false)
   const [sort, setSort] = useState<Sort>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem(SORT_KEY) as Sort) || 'newest'
@@ -57,7 +59,9 @@ export function EntriesList({
 
   const entriesInMonth = entries.filter(e => e.date.startsWith(activeKey))
 
-  const filtered = entriesInMonth
+  const baseEntries = favOnly ? entries.filter(e => e.isFavorite) : entriesInMonth
+
+  const filtered = baseEntries
     .filter(e => moodFilter === null || e.mood === moodFilter)
     .filter(e => !q || e.title.toLowerCase().includes(q.toLowerCase()) ||
       e.content.toLowerCase().includes(q.toLowerCase()))
@@ -69,12 +73,12 @@ export function EntriesList({
 
   const sortLabels: Record<Sort, string> = { newest: 'Najnowsze', oldest: 'Najstarsze', mood: 'Nastrój' }
 
-  // Moods present in current month for filter
+  // Moods present in active base for filter
   const moodsInMonth = useMemo(() => {
     const set = new Set<number>()
-    entriesInMonth.forEach(e => { if (e.mood) set.add(e.mood) })
+    baseEntries.forEach(e => { if (e.mood) set.add(e.mood) })
     return set
-  }, [entriesInMonth])
+  }, [baseEntries])
 
   const entryCountLabel = () => {
     const n = entriesInMonth.length
@@ -98,7 +102,7 @@ export function EntriesList({
         </div>
 
         {/* Month navigator */}
-        <div className="flex items-center justify-between mb-1 px-1">
+        <div className={`flex items-center justify-between mb-1 px-1 transition-opacity duration-200 ${favOnly ? 'opacity-30 pointer-events-none' : ''}`}>
           <button
             onClick={() => setMonthOffset(o => o - 1)}
             className="p-1.5 rounded-lg hover:bg-[rgba(201,153,63,0.12)] transition-colors"
@@ -158,15 +162,15 @@ export function EntriesList({
             {moodFilter !== null && (
               <button
                 onClick={() => setMoodFilter(null)}
-                className="ml-1 px-2 py-0.5 rounded-full text-[10px] transition-colors"
+                className="ml-1 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-150 hover:scale-110"
+                title="Wyczyść filtr"
                 style={{
-                  fontFamily: "'Cinzel', serif",
-                  color: 'rgba(201,153,63,0.6)',
-                  background: 'rgba(201,153,63,0.08)',
-                  letterSpacing: '0.06em',
+                  background: 'rgba(201,153,63,0.2)',
+                  border: '1.5px solid rgba(201,153,63,0.5)',
+                  color: '#C9993F',
                 }}
               >
-                Wyczyść
+                ×
               </button>
             )}
           </div>
@@ -186,8 +190,19 @@ export function EntriesList({
           />
         </div>
 
-        {/* Sort pills */}
-        <div className="flex gap-1.5">
+        {/* Sort pills + favorites toggle */}
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            onClick={() => setFavOnly(v => !v)}
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700 }}
+            className={[
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full tracking-wide transition-all',
+              favOnly ? 'bg-[#C9993F] text-white' : 'bg-[#E8DCC0] text-[#5C3D28] hover:bg-[#C9993F]/20',
+            ].join(' ')}
+          >
+            <Heart size={11} fill={favOnly ? 'currentColor' : 'none'} />
+            Ulubione
+          </button>
           {(Object.keys(sortLabels) as Sort[]).map(s => (
             <button
               key={s}
@@ -211,13 +226,15 @@ export function EntriesList({
             <BookOpen size={44} className="text-[#C9993F]/30" />
             <p style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600 }}
               className="text-[#7A5C42] text-center italic text-sm leading-relaxed">
-              {q || moodFilter
-                ? 'Nie znaleziono wspomnień\npasujących do filtrów.'
-                : entriesInMonth.length === 0
-                  ? 'W tym miesiącu nie ma jeszcze\nżadnych wpisów.'
-                  : 'Brak wyników.'}
+              {favOnly
+                ? 'Nie masz jeszcze\nulubionych wpisów.'
+                : q || moodFilter
+                  ? 'Nie znaleziono wspomnień\npasujących do filtrów.'
+                  : entriesInMonth.length === 0
+                    ? 'W tym miesiącu nie ma jeszcze\nżadnych wpisów.'
+                    : 'Brak wyników.'}
             </p>
-            {!q && !moodFilter && entriesInMonth.length === 0 && (
+            {!q && !moodFilter && !favOnly && entriesInMonth.length === 0 && (
               <button
                 onClick={onNewEntry}
                 style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
@@ -242,6 +259,7 @@ export function EntriesList({
                   isSelected={selectedEntryId === entry.id}
                   onClick={() => onSelectEntry(entry.id)}
                   onDeleted={onEntryDeleted}
+                  onToggleFavorite={() => onToggleFavorite(entry.id)}
                 />
               </motion.div>
             ))}

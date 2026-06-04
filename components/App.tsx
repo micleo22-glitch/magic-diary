@@ -16,6 +16,7 @@ import { AuthScreen } from './AuthScreen'
 import { ToastContainer } from './Toast'
 import { Onboarding } from './Onboarding'
 import { getEntries, deleteEntry } from '@/lib/storage'
+import { getFavoriteIds, toggleFavorite } from '@/lib/favorites'
 import { supabase } from '@/lib/supabase'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { toast } from '@/lib/toast'
@@ -143,6 +144,7 @@ export function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [view, setView] = useState<View>('splash')
   const [entries, setEntries] = useState<Entry[]>([])
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -160,6 +162,7 @@ export function App() {
     if (savedName) { setUsername(savedName); setUsernameInput(savedName) }
     if (savedHouse) setHouse(savedHouse)
     if (!onboardingDone) setShowOnboarding(true)
+    setFavoriteIds(getFavoriteIds())
   }, [])
 
   function saveMobileUsername() {
@@ -208,7 +211,13 @@ export function App() {
     }
   }, [reload])
 
-  const selectedEntry = selectedId ? entries.find(e => e.id === selectedId) ?? null : null
+  const enrichedEntries = entries.map(e => ({ ...e, isFavorite: favoriteIds.has(e.id) }))
+  const selectedEntry = selectedId ? enrichedEntries.find(e => e.id === selectedId) ?? null : null
+
+  const handleToggleFavorite = (id: string) => {
+    toggleFavorite(id)
+    setFavoriteIds(getFavoriteIds())
+  }
 
   const handleSplashDone = () => {
     if (session) { reload(); setView('new') }
@@ -285,6 +294,7 @@ export function App() {
           onEdit={handleEdit}
           onDelete={handleDeleted}
           onBack={() => setView('entries')}
+          onToggleFavorite={() => handleToggleFavorite(selectedEntry.id)}
           theme={houseTheme}
         />
       )
@@ -626,12 +636,13 @@ export function App() {
       </AnimatePresence>
 
       {/* ===== DESKTOP: Left sidebar ===== */}
-      <div className="hidden md:flex flex-col flex-shrink-0 border-r border-[rgba(201,169,110,0.1)]" style={{ width: 288 }}>
+      <div className="hidden md:flex flex-col flex-shrink-0 border-r border-[rgba(201,169,110,0.1)]" style={{ width: 320 }}>
         <Sidebar
-          entries={entries}
+          entries={enrichedEntries}
           selectedEntryId={selectedId}
           onSelectEntry={handleSelect}
           onNewEntry={handleNew}
+          onToggleFavorite={handleToggleFavorite}
           userEmail={session.user.email ?? ''}
           username={username}
           house={house}
@@ -671,11 +682,12 @@ export function App() {
         <div className="flex-1 overflow-y-auto">
           {view === 'entries' ? (
             <EntriesList
-              entries={entries}
+              entries={enrichedEntries}
               selectedEntryId={selectedId}
               onSelectEntry={handleSelect}
               onNewEntry={handleNew}
               onEntryDeleted={handleDeleted}
+              onToggleFavorite={handleToggleFavorite}
             />
           ) : (
             rightPanel

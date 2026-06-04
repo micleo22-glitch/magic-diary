@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical, Eye, Trash2, X, AlertTriangle } from 'lucide-react'
+import { MoreVertical, Eye, Trash2, X, AlertTriangle, Heart } from 'lucide-react'
 import { Entry, MOOD_EMOJI } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
 import { toast } from '@/lib/toast'
@@ -25,9 +25,10 @@ interface EntryCardProps {
   isSelected?: boolean
   onClick: () => void
   onDeleted: () => void
+  onToggleFavorite?: () => void
 }
 
-export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardProps) {
+export function EntryCard({ entry, isSelected, onClick, onDeleted, onToggleFavorite }: EntryCardProps) {
   const [menu, setMenu] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const preview = stripHtml(entry.content).slice(0, 110)
@@ -67,6 +68,16 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardPr
           {entry.mood ? (
             <span className="text-lg leading-none">{MOOD_EMOJI[entry.mood]}</span>
           ) : null}
+          {onToggleFavorite && (
+            <button
+              onClick={e => { e.stopPropagation(); onToggleFavorite() }}
+              className="p-1 rounded-lg transition-all duration-150"
+              style={{ color: entry.isFavorite ? '#C9993F' : 'rgba(122,92,66,0.35)' }}
+              title={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+            >
+              <Heart size={13} fill={entry.isFavorite ? 'currentColor' : 'none'} />
+            </button>
+          )}
           <button
             onClick={e => { e.stopPropagation(); setMenu(v => !v); setConfirmDelete(false) }}
             className="p-1 text-[#7A5C42] hover:text-[#C9993F] rounded-lg transition-colors"
