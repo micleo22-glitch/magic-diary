@@ -19,6 +19,7 @@ import { getEntries, deleteEntry } from '@/lib/storage'
 import { supabase } from '@/lib/supabase'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { toast } from '@/lib/toast'
+import { getHouseTheme, streakLabel } from '@/lib/houseTheme'
 import type { Session } from '@supabase/supabase-js'
 
 type View = 'splash' | 'new' | 'entries' | 'view' | 'edit'
@@ -92,16 +93,17 @@ function exportEntries(entries: Entry[]) {
 }
 
 // ─── shared overlay wrapper ───────────────────────────────────
-function Overlay({ title, icon: Icon, onClose, children }: {
+function Overlay({ title, icon: Icon, onClose, children, bg }: {
   title: string
   icon: React.ElementType
   onClose: () => void
   children: React.ReactNode
+  bg?: string
 }) {
   return (
     <motion.div
       className="fixed inset-0 z-[60] flex flex-col md:hidden"
-      style={{ background: 'linear-gradient(180deg, #2C0F0A 0%, #1A0A06 100%)' }}
+      style={{ background: bg ?? 'linear-gradient(180deg, #2C0F0A 0%, #1A0A06 100%)', transition: 'background 0.4s ease' }}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 24 }}
@@ -297,10 +299,13 @@ export function App() {
     )
   }
 
-  const userEmail = session?.user?.email ?? ''
-  const houseData = HOUSES.find(h => h.id === house)
-  const streak = calcStreak(entries)
-  const topMoodStr = topMood(entries)
+  const userEmail     = session?.user?.email ?? ''
+  const houseData     = HOUSES.find(h => h.id === house)
+  const streak        = calcStreak(entries)
+  const topMoodStr    = topMood(entries)
+  const houseTheme    = getHouseTheme(house)
+  const todayIso      = new Date().toISOString().slice(0, 10)
+  const todayHasEntry = entries.some(e => e.date === todayIso)
 
   // ─── Settings panels (shared between mobile & desktop, rendered differently) ───
 
@@ -515,7 +520,7 @@ export function App() {
             />
             <motion.div
               className="fixed inset-x-0 bottom-0 z-50 md:hidden rounded-t-3xl overflow-hidden"
-              style={{ background: '#2C0F0A', borderTop: '1px solid rgba(201,169,110,0.2)', maxHeight: '85dvh' }}
+              style={{ background: houseTheme.navBg, borderTop: `1px solid ${houseTheme.borderColor}`, maxHeight: '85dvh', transition: 'background 0.4s ease' }}
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
             >
@@ -527,20 +532,21 @@ export function App() {
               </button>
 
               {/* Avatar + name */}
-              <div className="flex items-center gap-4 px-6 py-5 border-b border-[rgba(201,169,110,0.12)]">
+              <div className="flex items-center gap-4 px-6 py-5 border-b" style={{ borderColor: houseTheme.borderColor }}>
                 <div style={{
                   width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
                   background: houseData
                     ? `linear-gradient(135deg, ${houseData.color}99 0%, ${houseData.color}44 100%)`
-                    : 'linear-gradient(135deg, #C9993F 0%, #8B5E2A 100%)',
-                  border: `2px solid ${houseData?.color ?? 'rgba(201,153,63,0.4)'}`,
+                    : `linear-gradient(135deg, ${houseTheme.primary}99 0%, ${houseTheme.primary}44 100%)`,
+                  border: `2px solid ${houseData?.color ?? houseTheme.primary}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontFamily: "'Cinzel', serif", fontSize: 18, color: '#F5EDD8', fontWeight: 600,
+                  boxShadow: `0 0 14px ${houseTheme.primaryGlow}`,
                 }}>
                   {username ? username.slice(0, 2).toUpperCase() : getInitials(userEmail)}
                 </div>
-                <div className="min-w-0">
-                  <p style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: '#C9993F', letterSpacing: '0.05em' }}
+                <div className="min-w-0 flex-1">
+                  <p style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: houseTheme.primary, letterSpacing: '0.05em' }}
                     className="truncate capitalize">
                     {username || userEmail.split('@')[0]}
                   </p>
@@ -550,6 +556,19 @@ export function App() {
                     </p>
                   )}
                 </div>
+                {streak > 0 && (
+                  <div className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-full"
+                    style={{
+                      background: todayHasEntry ? houseTheme.primaryDim : 'rgba(80,80,80,0.2)',
+                      border: `1px solid ${todayHasEntry ? houseTheme.borderColor : 'rgba(120,120,120,0.15)'}`,
+                    }}>
+                    <span style={{ fontSize: 13, opacity: todayHasEntry ? 1 : 0.4 }}>🔥</span>
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11,
+                      color: todayHasEntry ? houseTheme.primary : 'rgba(150,150,150,0.6)' }}>
+                      {streak}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Nav items */}
@@ -564,17 +583,17 @@ export function App() {
                       else toast('Wkrótce dostępne', 'info')
                     }}
                     className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-colors"
-                    style={{ color: '#C9993F' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,153,63,0.08)')}
+                    style={{ color: houseTheme.primary }}
+                    onMouseEnter={e => (e.currentTarget.style.background = houseTheme.primaryDim)}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <Icon size={20} style={{ color: 'rgba(201,153,63,0.6)' }} />
+                    <Icon size={20} style={{ color: houseTheme.primary, opacity: 0.65 }} />
                     <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.08em' }}>
                       {label}
                     </span>
                     {(label === 'Nauczyciele' || label === 'Sklep') && (
                       <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full"
-                        style={{ background: 'rgba(201,153,63,0.12)', color: 'rgba(201,153,63,0.5)', fontFamily: "'Cinzel', serif", letterSpacing: '0.06em' }}>
+                        style={{ background: houseTheme.primaryDim, color: houseTheme.primary, opacity: 0.6, fontFamily: "'Cinzel', serif", letterSpacing: '0.06em' }}>
                         Wkrótce
                       </span>
                     )}
@@ -589,7 +608,7 @@ export function App() {
       {/* ===== Settings overlay (mobile) ===== */}
       <AnimatePresence>
         {mobilePanel === 'settings' && (
-          <Overlay title="USTAWIENIA" icon={Settings} onClose={() => { setMobilePanel(null); setConfirmDeleteAll(false) }}>
+          <Overlay title="USTAWIENIA" icon={Settings} onClose={() => { setMobilePanel(null); setConfirmDeleteAll(false) }} bg={houseTheme.sidebarBg}>
             <SettingsContent />
           </Overlay>
         )}
@@ -598,7 +617,7 @@ export function App() {
       {/* ===== Profile overlay (mobile) ===== */}
       <AnimatePresence>
         {mobilePanel === 'profile' && (
-          <Overlay title="PROFIL" icon={User} onClose={() => setMobilePanel(null)}>
+          <Overlay title="PROFIL" icon={User} onClose={() => setMobilePanel(null)} bg={houseTheme.sidebarBg}>
             <ProfileContent />
           </Overlay>
         )}
@@ -614,6 +633,7 @@ export function App() {
           userEmail={session.user.email ?? ''}
           username={username}
           house={house}
+          theme={houseTheme}
           onLogout={handleLogout}
           onUsernameChange={(v) => { setUsername(v); setUsernameInput(v) }}
           onHouseChange={selectMobileHouse}
@@ -632,16 +652,45 @@ export function App() {
       {/* ===== MOBILE: Single panel views ===== */}
       <div className="flex md:hidden flex-1 flex-col overflow-hidden">
         <div
-          className="leather-bg flex-shrink-0 flex items-center justify-center px-4 py-3 border-b border-[rgba(201,169,110,0.18)]"
+          className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b"
+          style={{ background: houseTheme.navBg, borderColor: houseTheme.borderColor, transition: 'background 0.4s ease' }}
         >
+          {/* Left spacer (same width as streak badge to center logo) */}
+          <div style={{ width: 52 }} />
+
+          {/* Logo centered */}
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Magic Diary" width={34} height={34}
-              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(201,153,63,0.5))' }} />
-            <span style={{ fontFamily: "'IM Fell English SC', serif", color: '#C9993F', fontSize: 19, letterSpacing: '0.1em' }}>
+            <img src="/logo.png" alt="Magic Diary" width={32} height={32}
+              style={{ objectFit: 'contain', filter: `drop-shadow(0 0 10px ${houseTheme.primaryGlow})` }} />
+            <span style={{ fontFamily: "'IM Fell English SC', serif", color: houseTheme.primary, fontSize: 19, letterSpacing: '0.1em', transition: 'color 0.4s ease' }}>
               Magic Diary
             </span>
           </div>
+
+          {/* Streak badge right */}
+          {streak > 0 ? (
+            <div
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full"
+              style={{
+                background: todayHasEntry ? houseTheme.primaryDim : 'rgba(80,80,80,0.2)',
+                border: `1px solid ${todayHasEntry ? houseTheme.borderColor : 'rgba(100,100,100,0.15)'}`,
+                transition: 'all 0.3s ease',
+              }}
+              title={`Seria: ${streakLabel(streak)} z rzędu`}
+            >
+              <span style={{ fontSize: 14, opacity: todayHasEntry ? 1 : 0.4 }}>🔥</span>
+              <span style={{
+                fontFamily: "'Cinzel', serif", fontSize: 11,
+                color: todayHasEntry ? houseTheme.primary : 'rgba(150,150,150,0.6)',
+                letterSpacing: '0.04em',
+              }}>
+                {streak}
+              </span>
+            </div>
+          ) : (
+            <div style={{ width: 52 }} />
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -664,6 +713,9 @@ export function App() {
             onNewEntry={handleNew}
             onEntries={() => setView('entries')}
             onMenu={() => setMenuOpen(o => !o)}
+            theme={houseTheme}
+            streak={streak}
+            todayHasEntry={todayHasEntry}
           />
         </div>
       </div>

@@ -1,17 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Wand2, Mic, MicOff, Clock } from 'lucide-react'
-
-const SNAPE_REPLIES = [
-  'Zadziwiające. Kolejna płytka refleksja. Spróbuj głębiej.',
-  'Hmm. Widzę, że myślenie nie jest twoją mocną stroną. Przynajmniej piszesz.',
-  'Interesujące. Chociaż twoje słowa są tak blade jak twoja ocena z eliksirów.',
-  'Powiadasz? Skończyłem słuchać po pierwszym zdaniu, ale kontynuuj.',
-  'Oto rzadki błysk samoświadomości. Nie pozwól, by przyszedł w nawyk.',
-  'Piszesz to, jakbyś miał rację. Rozczarowujesz mnie niezwykle rzadko.',
-  'Kolejny dzień, kolejny wpis pełen oczywistości. Ale to lepsze niż cisza.',
-]
+import { Send, Wand2, Mic, MicOff } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -47,13 +37,22 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
     const text = input.trim()
     if (!text || loading) return
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', text }])
+    const updated = [...messages, { role: 'user' as const, text }]
+    setMessages(updated)
     setLoading(true)
-    setTimeout(() => {
-      const reply = SNAPE_REPLIES[Math.floor(Math.random() * SNAPE_REPLIES.length)]
-      setMessages(prev => [...prev, { role: 'assistant', text: reply }])
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: updated, entryTitle }),
+      })
+      const data = await res.json()
+      setMessages(prev => [...prev, { role: 'assistant', text: data.reply ?? '...' }])
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Coś poszło nie tak. Spróbuj ponownie.' }])
+    } finally {
       setLoading(false)
-    }, 900)
+    }
   }
 
   const toggleRecording = () => {
@@ -121,11 +120,7 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
         >
           doradca osobisty
         </span>
-        <div className="ml-auto flex items-center gap-1"
-          style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: 'rgba(201,153,63,0.3)', letterSpacing: '0.06em' }}>
-          <Clock size={9} style={{ color: 'rgba(201,153,63,0.3)' }} />
-          TRYB DEMO
-        </div>
+        <div className="ml-auto w-2 h-2 rounded-full" style={{ background: '#4CAF50', boxShadow: '0 0 6px #4CAF50' }} />
       </div>
 
       {/* Messages */}
