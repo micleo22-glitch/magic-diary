@@ -654,12 +654,9 @@ export function App() {
       {/* ===== MOBILE: Single panel views ===== */}
       <div className="flex md:hidden flex-1 flex-col overflow-hidden">
         <div
-          className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b"
+          className="flex-shrink-0 flex items-center justify-center px-4 py-3 border-b"
           style={{ background: houseTheme.navBg, borderColor: houseTheme.borderColor, transition: 'background 0.4s ease' }}
         >
-          {/* Left spacer (same width as streak badge to center logo) */}
-          <div style={{ width: 52 }} />
-
           {/* Logo centered */}
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -669,30 +666,6 @@ export function App() {
               Magic Diary
             </span>
           </div>
-
-          {/* Streak badge right */}
-          {streak > 0 ? (
-            <div
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full"
-              style={{
-                background: todayHasEntry ? houseTheme.primaryDim : 'rgba(80,80,80,0.2)',
-                border: `1px solid ${todayHasEntry ? houseTheme.borderColor : 'rgba(100,100,100,0.15)'}`,
-                transition: 'all 0.3s ease',
-              }}
-              title={`Seria: ${streakLabel(streak)} z rzędu`}
-            >
-              <span style={{ fontSize: 14, opacity: todayHasEntry ? 1 : 0.4 }}>🔥</span>
-              <span style={{
-                fontFamily: "'Cinzel', serif", fontSize: 11,
-                color: todayHasEntry ? houseTheme.primary : 'rgba(150,150,150,0.6)',
-                letterSpacing: '0.04em',
-              }}>
-                {streak}
-              </span>
-            </div>
-          ) : (
-            <div style={{ width: 52 }} />
-          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -716,8 +689,6 @@ export function App() {
             onEntries={() => setView('entries')}
             onMenu={() => setMenuOpen(o => !o)}
             theme={houseTheme}
-            streak={streak}
-            todayHasEntry={todayHasEntry}
           />
         </div>
       </div>
