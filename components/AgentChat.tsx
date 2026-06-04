@@ -202,26 +202,26 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
         return
       }
 
-      // Add empty bubble and start typewriter before stream drains
-      setMessages(prev => [...prev, { role: 'assistant' as const, text: '' }])
-      setLoading(false)
-
-      const msgIndex = updated.length  // index of the new assistant bubble
-      const entryId = entry.id
-
-      // Start typewriter — it reads from streamBufferRef at its own pace
-      startTypewriter(msgIndex, (fullText) => {
-        if (fullText) saveChatMessage(entryId, 'assistant', fullText)
-      })
-
-      // Drain stream into buffer
+      // Drain stream into buffer; show bubble only on first token
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
+      const entryId = entry.id
+      let started = false
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         streamBufferRef.current += decoder.decode(value, { stream: true })
+
+        if (!started && streamBufferRef.current.length > 0) {
+          started = true
+          const msgIndex = updated.length
+          setMessages(prev => [...prev, { role: 'assistant' as const, text: '' }])
+          setLoading(false)
+          startTypewriter(msgIndex, (fullText) => {
+            if (fullText) saveChatMessage(entryId, 'assistant', fullText)
+          })
+        }
       }
       streamDoneRef.current = true
     } catch {
@@ -334,17 +334,30 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
           <div className="flex justify-start">
             <div
               style={{
-                padding: '10px 18px',
+                padding: '10px 16px',
                 borderRadius: '14px 14px 14px 3px',
                 background: 'rgba(255,255,255,0.05)',
                 border: `1px solid ${theme.borderColor}`,
-                color: theme.primary,
-                fontSize: 20,
-                letterSpacing: 5,
-                lineHeight: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
               }}
             >
-              ···
+              {[0, 1, 2].map(i => (
+                <span
+                  key={i}
+                  style={{
+                    display: 'inline-block',
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: theme.primary,
+                    animation: 'snapePulse 1.4s ease-in-out infinite',
+                    animationDelay: `${i * 0.22}s`,
+                    opacity: 0.3,
+                  }}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -428,6 +441,10 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
         @keyframes micPulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(201,153,63,0.3); }
           50% { box-shadow: 0 0 0 5px rgba(201,153,63,0); }
+        }
+        @keyframes snapePulse {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+          30% { transform: translateY(-5px); opacity: 1; }
         }
         input::placeholder {
           color: rgba(201,153,63,0.3);
