@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, Wand2, Mic, MicOff } from 'lucide-react'
+import { Entry } from '@/types/entry'
+import { supabase } from '@/lib/supabase'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -9,15 +11,15 @@ interface Message {
 }
 
 interface AgentChatProps {
-  entryTitle: string
+  entry: Entry
 }
 
-export function AgentChat({ entryTitle }: AgentChatProps) {
+export function AgentChat({ entry }: AgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      text: entryTitle
-        ? `Co cię skłoniło do napisania o "${entryTitle}"? Mów, nie mam całego dnia.`
+      text: entry.title
+        ? `Co cię skłoniło do napisania o "${entry.title}"? Mów, nie mam całego dnia.`
         : 'Co cię skłoniło do napisania tego dzisiaj? Mów.',
     },
   ])
@@ -25,6 +27,7 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
   const [loading, setLoading] = useState(false)
   const [recording, setRecording] = useState(false)
   const [focused, setFocused] = useState(false)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null)
@@ -32,6 +35,12 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setAccessToken(data.session?.access_token ?? null)
+    })
+  }, [])
 
   const send = async () => {
     const text = input.trim()
@@ -44,10 +53,24 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updated, entryTitle }),
+        body: JSON.stringify({
+          messages: updated,
+          entry: {
+            title: entry.title,
+            content: entry.content,
+            mood: entry.mood,
+            date: entry.date,
+          },
+          accessToken,
+        }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', text: data.reply ?? '...' }])
+      if (!res.ok || !data.reply) {
+        const msg = data.error ?? 'Brak odpowiedzi z API.'
+        setMessages(prev => [...prev, { role: 'assistant', text: `Coś poszło nie tak: ${msg}` }])
+        return
+      }
+      setMessages(prev => [...prev, { role: 'assistant', text: data.reply }])
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', text: 'Coś poszło nie tak. Spróbuj ponownie.' }])
     } finally {
@@ -59,7 +82,6 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any
     const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition
-
     if (!SpeechRecognition) return
 
     if (recording) {
@@ -171,7 +193,6 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
         className="px-5 py-3 flex gap-2 items-center"
         style={{ borderTop: '1px solid rgba(201,169,110,0.1)' }}
       >
-        {/* Text input */}
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -194,7 +215,6 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
           }}
         />
 
-        {/* Mic button */}
         <button
           onClick={toggleRecording}
           aria-label={recording ? 'Zatrzymaj nagrywanie' : 'Dyktuj głosem'}
@@ -218,7 +238,6 @@ export function AgentChat({ entryTitle }: AgentChatProps) {
           {recording ? <MicOff size={15} /> : <Mic size={15} />}
         </button>
 
-        {/* Send button */}
         <button
           onClick={send}
           disabled={!input.trim() || loading}

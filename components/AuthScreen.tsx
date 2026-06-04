@@ -89,7 +89,7 @@ export function AuthScreen() {
         >
           Magic Diary
         </h1>
-        <p style={{ fontFamily: "'Lora', serif", color: 'rgba(201,153,63,0.45)', fontSize: 13 }}>
+        <p style={{ fontFamily: "'Lora', serif", color: 'rgba(201,153,63,0.85)', fontSize: 13, fontWeight: 500 }}>
           Twój prywatny dziennik
         </p>
       </motion.div>
@@ -105,14 +105,14 @@ export function AuthScreen() {
       >
         <h2
           className="mb-6 text-center"
-          style={{ fontFamily: "'Playfair Display', serif", color: '#1A0A06', fontSize: 20 }}
+          style={{ fontFamily: "'Playfair Display', serif", color: '#1A0A06', fontSize: 20, fontWeight: 700 }}
         >
           {title}
         </h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 11 }}>
+            <label style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 11, fontWeight: 700 }}>
               E-MAIL
             </label>
             <input
@@ -122,7 +122,7 @@ export function AuthScreen() {
               onChange={e => setEmail(e.target.value)}
               placeholder="twoj@email.com"
               className="w-full px-4 py-3 rounded-xl outline-none border border-[rgba(201,153,63,0.3)] focus:border-[#C9993F] transition-colors"
-              style={{ background: 'rgba(255,255,255,0.6)', fontFamily: "'Lora', serif", color: '#1A0A06', fontSize: 14 }}
+              style={{ background: 'rgba(255,255,255,0.6)', fontFamily: "'Lora', serif", color: '#1A0A06', fontSize: 14, fontWeight: 500 }}
             />
           </div>
 
@@ -134,7 +134,7 @@ export function AuthScreen() {
                 exit={{ opacity: 0, height: 0 }}
                 className="flex flex-col gap-1.5 overflow-hidden"
               >
-                <label style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 11 }}>
+                <label style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 11, fontWeight: 700 }}>
                   HASŁO
                 </label>
                 <input
@@ -145,7 +145,7 @@ export function AuthScreen() {
                   placeholder="••••••••"
                   minLength={6}
                   className="w-full px-4 py-3 rounded-xl outline-none border border-[rgba(201,153,63,0.3)] focus:border-[#C9993F] transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.6)', fontFamily: "'Lora', serif", color: '#1A0A06', fontSize: 14 }}
+                  style={{ background: 'rgba(255,255,255,0.6)', fontFamily: "'Lora', serif", color: '#1A0A06', fontSize: 14, fontWeight: 500 }}
                 />
               </motion.div>
             )}
@@ -174,6 +174,7 @@ export function AuthScreen() {
               color: loading ? '#7A5C42' : 'white',
               fontFamily: "'Lora', serif",
               fontSize: 15,
+              fontWeight: 700,
               cursor: loading ? 'not-allowed' : 'pointer',
             }}
           >
@@ -203,7 +204,7 @@ export function AuthScreen() {
                 <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
                 <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
               </svg>
-              <span style={{ fontFamily: "'Lora', serif", color: '#3D2B1A', fontSize: 14 }}>
+              <span style={{ fontFamily: "'Lora', serif", color: '#3D2B1A', fontSize: 14, fontWeight: 600 }}>
                 Kontynuuj z Google
               </span>
             </button>
@@ -216,14 +217,14 @@ export function AuthScreen() {
             <>
               <button
                 onClick={() => switchMode('forgot')}
-                style={{ fontFamily: "'Cinzel', serif", color: '#7A5C42', fontSize: 11 }}
+                style={{ fontFamily: "'Cinzel', serif", color: '#7A5C42', fontSize: 11, fontWeight: 600 }}
                 className="hover:text-[#C9993F] transition-colors tracking-wide"
               >
                 Zapomniałem hasła
               </button>
               <button
                 onClick={() => switchMode('register')}
-                style={{ fontFamily: "'Cinzel', serif", color: '#7A5C42', fontSize: 11 }}
+                style={{ fontFamily: "'Cinzel', serif", color: '#7A5C42', fontSize: 11, fontWeight: 600 }}
                 className="hover:text-[#C9993F] transition-colors tracking-wide"
               >
                 Nie mam konta — zarejestruj się

@@ -48,7 +48,7 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardPr
       {/* Main card content */}
       <div className="p-4 flex gap-3 items-start">
         <div className="flex-1 min-w-0">
-          <p style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: '#5C3D28' }} className="mb-1">
+          <p style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: '#5C3D28', fontWeight: 600 }} className="mb-1">
             {fmtDate(entry.date)}
           </p>
           <h3 style={{ fontFamily: "'Playfair Display', serif" }}
@@ -56,7 +56,7 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardPr
             {entry.title || 'Bez tytułu'}
           </h3>
           {preview && (
-            <p style={{ fontFamily: "'Lora', serif", fontSize: 14 }}
+            <p style={{ fontFamily: "'Lora', serif", fontSize: 14, fontWeight: 500 }}
               className="text-[#5C3D28] leading-relaxed line-clamp-2">
               {preview}
             </p>
@@ -84,21 +84,21 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardPr
         >
           <div className="flex items-center gap-2">
             <AlertTriangle size={13} style={{ color: '#8B1A1A', flexShrink: 0 }} />
-            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: '#8B1A1A', letterSpacing: '0.04em' }}>
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: '#8B1A1A', letterSpacing: '0.04em', fontWeight: 700 }}>
               Usunąć bezpowrotnie?
             </span>
           </div>
           <div className="flex gap-1.5">
             <button
               onClick={e => { e.stopPropagation(); setConfirmDelete(false) }}
-              style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#7A5C42', letterSpacing: '0.06em' }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#7A5C42', letterSpacing: '0.06em', fontWeight: 700 }}
               className="px-2.5 py-1 rounded-lg border border-[rgba(201,153,63,0.25)] hover:border-[rgba(201,153,63,0.5)] transition-colors"
             >
               Anuluj
             </button>
             <button
               onClick={handleDelete}
-              style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#8B1A1A', letterSpacing: '0.06em', background: 'rgba(139,26,26,0.12)' }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: '#8B1A1A', letterSpacing: '0.06em', background: 'rgba(139,26,26,0.12)', fontWeight: 700 }}
               className="px-2.5 py-1 rounded-lg border border-[rgba(139,26,26,0.3)] hover:border-[rgba(139,26,26,0.6)] transition-colors"
             >
               Usuń
@@ -118,7 +118,7 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardPr
           >
             <button
               onClick={e => { e.stopPropagation(); setMenu(false); onClick() }}
-              style={{ fontFamily: "'Cinzel', serif", fontSize: 11 }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
               className="flex items-center gap-2 w-full px-4 py-2.5 text-[#2B1A0F] hover:bg-[#C9993F]/10 uppercase tracking-wide"
             >
               <Eye size={13} />
@@ -126,7 +126,7 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted }: EntryCardPr
             </button>
             <button
               onClick={e => { e.stopPropagation(); setMenu(false); setConfirmDelete(true) }}
-              style={{ fontFamily: "'Cinzel', serif", fontSize: 11 }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
               className="flex items-center gap-2 w-full px-4 py-2.5 text-[#8B1A1A] hover:bg-[#8B1A1A]/10 uppercase tracking-wide"
             >
               <Trash2 size={13} />

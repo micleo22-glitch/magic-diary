@@ -60,7 +60,7 @@ export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) 
             ].join(' ')}
           >
             <span
-              style={{ fontFamily: "'Cinzel', serif", fontSize: 10 }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 10, fontWeight: 700 }}
               className="leading-none mb-1"
             >
               {day.name}
@@ -87,6 +87,7 @@ export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) 
               fontFamily: "'Cinzel', serif",
               fontSize: 10,
               letterSpacing: '0.08em',
+              fontWeight: 700,
               color: '#C9993F',
               background: 'rgba(201,153,63,0.1)',
               border: '1px solid rgba(201,153,63,0.25)',

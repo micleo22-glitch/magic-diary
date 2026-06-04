@@ -106,10 +106,10 @@ export function EntriesList({
           </button>
 
           <div className="flex flex-col items-center gap-0.5">
-            <span style={{ fontFamily: "'IM Fell English SC', serif", fontSize: 18, color: '#C9993F', letterSpacing: '0.06em' }}>
+            <span style={{ fontFamily: "'IM Fell English SC', serif", fontSize: 18, color: '#C9993F', letterSpacing: '0.06em', fontWeight: 700 }}>
               {PL_MONTHS[activeMonth]}
             </span>
-            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.1em' }}>
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.65)', letterSpacing: '0.1em', fontWeight: 700 }}>
               {activeYear}
             </span>
             {monthsWithEntries.has(activeKey) && (
@@ -130,7 +130,7 @@ export function EntriesList({
         {/* Entry count */}
         {entryCountLabel() && (
           <p className="text-center mb-3"
-            style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.45)', letterSpacing: '0.1em' }}>
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.65)', letterSpacing: '0.1em', fontWeight: 700 }}>
             {entryCountLabel()}
           </p>
         )}
@@ -178,7 +178,7 @@ export function EntriesList({
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Szukaj wspomnień..."
-            style={{ fontFamily: "'Lora', serif", fontSize: 16 }}
+            style={{ fontFamily: "'Lora', serif", fontSize: 16, fontWeight: 500 }}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#E8DCC0] border border-[rgba(201,169,110,0.3)] text-[#1A0A06] placeholder:text-[#7A5C42]/70 outline-none focus:border-[#C9993F] transition-colors"
           />
         </div>
@@ -189,7 +189,7 @@ export function EntriesList({
             <button
               key={s}
               onClick={() => setSort(s)}
-              style={{ fontFamily: "'Cinzel', serif", fontSize: 12 }}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700 }}
               className={[
                 'px-3 py-1.5 rounded-full tracking-wide transition-all',
                 sort === s ? 'bg-[#C9993F] text-white' : 'bg-[#E8DCC0] text-[#5C3D28] hover:bg-[#C9993F]/20',
@@ -206,7 +206,7 @@ export function EntriesList({
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 gap-4">
             <BookOpen size={44} className="text-[#C9993F]/30" />
-            <p style={{ fontFamily: "'Playfair Display', serif" }}
+            <p style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600 }}
               className="text-[#7A5C42] text-center italic text-sm leading-relaxed">
               {q || moodFilter
                 ? 'Nie znaleziono wspomnień\npasujących do filtrów.'
@@ -217,7 +217,7 @@ export function EntriesList({
             {!q && !moodFilter && entriesInMonth.length === 0 && (
               <button
                 onClick={onNewEntry}
-                style={{ fontFamily: "'Cinzel', serif", fontSize: 11 }}
+                style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
                 className="flex items-center gap-2 px-6 py-2.5 bg-[#C9993F] text-white rounded-xl uppercase tracking-widest hover:bg-[#F0C96A] transition-colors"
               >
                 <Plus size={14} />

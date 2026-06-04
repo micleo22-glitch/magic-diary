@@ -46,7 +46,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
         <button
           onClick={onBack}
           className="md:invisible flex items-center gap-1.5 text-[#7A5C42] hover:text-[#C9993F] transition-colors"
-          style={{ fontFamily: "'Cinzel', serif", fontSize: 11 }}
+          style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
         >
           <ArrowLeft size={15} />
           Wróć
@@ -55,7 +55,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => onEdit(entry)}
-            style={{ fontFamily: "'Cinzel', serif", fontSize: 11 }}
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[#C9993F] border border-[#C9993F]/35 rounded-xl hover:bg-[#C9993F]/10 transition-all tracking-wide"
           >
             <Pencil size={13} />
@@ -84,14 +84,14 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
             <div className="flex items-center justify-between px-4 py-3 gap-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle size={14} style={{ color: '#E05555', flexShrink: 0 }} />
-                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: '#E05555', letterSpacing: '0.04em' }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: '#E05555', letterSpacing: '0.04em', fontWeight: 700 }}>
                   Usunąć ten wpis bezpowrotnie?
                 </span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.6)', letterSpacing: '0.06em' }}
+                  style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.6)', letterSpacing: '0.06em', fontWeight: 700 }}
                   className="px-3 py-1.5 rounded-lg border border-[rgba(201,153,63,0.2)] hover:border-[rgba(201,153,63,0.4)] transition-colors"
                 >
                   Anuluj
@@ -99,7 +99,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  style={{ background: 'rgba(180,30,30,0.3)', color: '#E05555', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.06em' }}
+                  style={{ background: 'rgba(180,30,30,0.3)', color: '#E05555', fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.06em', fontWeight: 700 }}
                   className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                 >
                   {deleting ? '...' : 'Usuń'}
@@ -113,7 +113,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
       {/* Content */}
       <div className="flex-1 max-w-2xl mx-auto w-full px-6 py-8">
         {/* Date */}
-        <p style={{ fontFamily: "'IM Fell English SC', serif", color: '#7A5C42', fontSize: 13 }}
+        <p style={{ fontFamily: "'IM Fell English SC', serif", color: '#7A5C42', fontSize: 13, fontWeight: 600 }}
           className="text-center mb-3">
           {fmtFull(entry.date)}
         </p>
@@ -128,7 +128,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
         {entry.mood ? (
           <div className="flex items-center justify-center gap-2 mb-6">
             <span className="text-2xl">{MOOD_EMOJI[entry.mood]}</span>
-            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: '#7A5C42' }}
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: '#7A5C42', fontWeight: 600 }}
               className="tracking-wide">
               {MOOD_LABEL[entry.mood]}
             </span>
@@ -147,7 +147,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
         {/* Body */}
         <div
           className="entry-content"
-          style={{ fontFamily: "'Lora', serif", color: '#2B1A0F', lineHeight: 1.85, fontSize: 16 }}
+          style={{ fontFamily: "'Lora', serif", color: '#2B1A0F', lineHeight: 1.85, fontSize: 16, fontWeight: 500 }}
           dangerouslySetInnerHTML={{ __html: entry.content }}
         />
 
@@ -167,7 +167,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack }: EntryViewProps) {
         </div>
       </div>
 
-      <AgentChat entryTitle={entry.title} />
+      <AgentChat entry={entry} />
     </motion.div>
   )
 }

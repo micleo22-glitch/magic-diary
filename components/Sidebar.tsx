@@ -77,7 +77,7 @@ function SectionCard({ label, children }: { label: string; children: React.React
     <div className="rounded-2xl border border-[rgba(201,153,63,0.15)]"
       style={{ background: 'rgba(255,255,255,0.03)' }}>
       <div className="px-4 pt-4 pb-4">
-        <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.12em' }}
+        <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.95)', letterSpacing: '0.12em', fontWeight: 700 }}
           className="mb-3 uppercase">{label}</p>
         {children}
       </div>
@@ -147,7 +147,7 @@ export function Sidebar({
           </div>
           <button onClick={() => setActiveNav(null)}
             className="p-2 rounded-xl hover:bg-[rgba(201,153,63,0.1)] transition-colors"
-            style={{ color: 'rgba(201,153,63,0.5)' }}>
+            style={{ color: 'rgba(201,153,63,0.85)' }}>
             <X size={18} />
           </button>
         </div>
@@ -167,16 +167,16 @@ export function Sidebar({
               {initials}
             </div>
             <div className="text-center">
-              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: theme.primary }}>{displayName}</p>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: theme.primary, fontWeight: 700 }}>{displayName}</p>
               {houseData && (
-                <p style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: houseData.color, letterSpacing: '0.08em' }}>
+                <p style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: houseData.color, letterSpacing: '0.08em', fontWeight: 700 }}>
                   {houseData.emoji} {houseData.name}
                 </p>
               )}
               {streak > 0 && (
                 <p style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.06em', marginTop: 4,
-                  color: todayHasEntry ? theme.primary : 'rgba(150,150,150,0.6)' }}>
-                  <span style={{ opacity: todayHasEntry ? 1 : 0.4 }}>🔥</span> {streakLabel(streak)} z rzędu{!todayHasEntry ? ' · napisz dziś!' : ''}
+                  color: todayHasEntry ? theme.primary : 'rgba(200,185,165,0.85)' }}>
+                  <span style={{ opacity: todayHasEntry ? 1 : 0.6 }}>🔥</span> {streakLabel(streak)} z rzędu{!todayHasEntry ? ' · napisz dziś!' : ''}
                 </p>
               )}
             </div>
@@ -191,10 +191,10 @@ export function Sidebar({
               ].map(({ label, value }) => (
                 <div key={label} className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl"
                   style={{ background: theme.primaryDim, border: `1px solid ${theme.borderColor}` }}>
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: 'rgba(201,153,63,0.45)', letterSpacing: '0.1em' }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, color: 'rgba(201,153,63,0.9)', letterSpacing: '0.1em', fontWeight: 700 }}>
                     {label.toUpperCase()}
                   </span>
-                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: '#D4A96A' }}>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: '#D4A96A', fontWeight: 700 }}>
                     {value}
                   </span>
                 </div>
@@ -216,7 +216,7 @@ export function Sidebar({
                         <div className="h-full rounded-full transition-all duration-500"
                           style={{ width: `${pct}%`, background: theme.primary }} />
                       </div>
-                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', minWidth: 24, textAlign: 'right' }}>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.95)', minWidth: 24, textAlign: 'right', fontWeight: 700 }}>
                         {pct}%
                       </span>
                     </div>
@@ -242,7 +242,7 @@ export function Sidebar({
           </div>
           <button onClick={() => { setActiveNav(null); setConfirmDeleteAll(false) }}
             className="p-2 rounded-xl hover:bg-[rgba(201,153,63,0.1)] transition-colors"
-            style={{ color: 'rgba(201,153,63,0.5)' }}>
+            style={{ color: 'rgba(201,153,63,0.85)' }}>
             <X size={18} />
           </button>
         </div>
@@ -251,14 +251,14 @@ export function Sidebar({
 
           <SectionCard label="Konto">
             <div className="flex items-center gap-3 mb-3 p-3 rounded-xl" style={{ background: theme.primaryDim }}>
-              <Mail size={13} style={{ color: theme.primary, flexShrink: 0, opacity: 0.7 }} />
-              <span style={{ fontFamily: "'Lora', serif", fontSize: 12, color: '#D4A96A' }} className="truncate">{userEmail}</span>
+              <Mail size={13} style={{ color: theme.primary, flexShrink: 0, opacity: 1 }} />
+              <span style={{ fontFamily: "'Lora', serif", fontSize: 12, color: '#D4A96A', fontWeight: 600 }} className="truncate">{userEmail}</span>
             </div>
             <button onClick={() => { setActiveNav(null); onLogout() }}
               className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all"
               style={{ background: 'rgba(255,255,255,0.02)', borderColor: theme.borderColor }}>
-              <LogOut size={13} style={{ color: theme.primary, opacity: 0.6 }} />
-              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.7)', letterSpacing: '0.06em' }}>
+              <LogOut size={13} style={{ color: theme.primary, opacity: 0.95 }} />
+              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.95)', letterSpacing: '0.06em', fontWeight: 700 }}>
                 Wyloguj się
               </span>
             </button>
@@ -272,7 +272,7 @@ export function Sidebar({
               onKeyDown={e => e.key === 'Enter' && saveUsername()}
               placeholder={userEmail.split('@')[0]}
               style={{ fontFamily: "'Lora', serif", fontSize: 14, background: 'rgba(255,255,255,0.05)' }}
-              className="w-full px-3 py-2.5 rounded-xl border text-[#D4A96A] placeholder:text-[#7A5C42]/50 outline-none transition-colors mb-2.5"
+              className="w-full px-3 py-2.5 rounded-xl border text-[#D4A96A] placeholder:text-[#BFA882]/70 outline-none transition-colors mb-2.5"
               onFocus={e => (e.target.style.borderColor = theme.primary + '80')}
               onBlur={e => (e.target.style.borderColor = 'rgba(201,153,63,0.2)')}
             />
@@ -296,7 +296,7 @@ export function Sidebar({
                     }}>
                     <span style={{ fontSize: 22 }}>{h.emoji}</span>
                     <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: '0.06em',
-                      color: selected ? h.color : 'rgba(201,153,63,0.55)' }}>
+                      color: selected ? h.color : 'rgba(201,153,63,0.9)', fontWeight: 700 }}>
                       {h.name}
                     </span>
                   </button>
@@ -309,8 +309,8 @@ export function Sidebar({
             <button onClick={onExport}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border mb-2 transition-all"
               style={{ background: 'rgba(255,255,255,0.02)', borderColor: theme.borderColor }}>
-              <Download size={13} style={{ color: theme.primary, opacity: 0.7 }} />
-              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.7)', letterSpacing: '0.06em' }}>
+              <Download size={13} style={{ color: theme.primary, opacity: 1 }} />
+              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.95)', letterSpacing: '0.06em', fontWeight: 700 }}>
                 Eksportuj wpisy (.json)
               </span>
             </button>
@@ -320,25 +320,25 @@ export function Sidebar({
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all"
                 style={{ background: 'rgba(180,30,30,0.05)', borderColor: 'rgba(180,30,30,0.2)' }}>
                 <Trash2 size={13} style={{ color: '#E05555' }} />
-                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: '#E05555', letterSpacing: '0.06em' }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: '#E05555', letterSpacing: '0.06em', fontWeight: 700 }}>
                   Usuń wszystkie wpisy
                 </span>
               </button>
             ) : (
               <div className="p-3 rounded-xl border border-[rgba(180,30,30,0.3)]"
                 style={{ background: 'rgba(180,30,30,0.08)' }}>
-                <p style={{ fontFamily: "'Lora', serif", fontSize: 12, color: '#E05555' }} className="mb-2.5 text-center">
+                <p style={{ fontFamily: "'Lora', serif", fontSize: 12, color: '#E05555', fontWeight: 600 }} className="mb-2.5 text-center">
                   Na pewno usunąć wszystko?
                 </p>
                 <div className="flex gap-2">
                   <button onClick={() => setConfirmDeleteAll(false)}
                     className="flex-1 py-1.5 rounded-xl border border-[rgba(201,153,63,0.2)] transition-colors"
-                    style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.6)' }}>
+                    style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.9)', fontWeight: 700 }}>
                     Anuluj
                   </button>
                   <button onClick={() => { onDeleteAll(); setActiveNav(null); setConfirmDeleteAll(false) }}
                     className="flex-1 py-1.5 rounded-xl transition-colors"
-                    style={{ background: 'rgba(180,30,30,0.3)', fontFamily: "'Cinzel', serif", fontSize: 10, color: '#E05555' }}>
+                    style={{ background: 'rgba(180,30,30,0.3)', fontFamily: "'Cinzel', serif", fontSize: 10, color: '#E05555', fontWeight: 700 }}>
                     Usuń
                   </button>
                 </div>
@@ -373,12 +373,12 @@ export function Sidebar({
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: theme.primary, letterSpacing: '0.05em' }}
+            <p style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: theme.primary, letterSpacing: '0.05em', fontWeight: 700 }}
               className="truncate capitalize">
               {displayName}
             </p>
             {houseData && (
-              <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: houseData.color, letterSpacing: '0.05em' }}>
+              <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: houseData.color, letterSpacing: '0.05em', fontWeight: 700 }}>
                 {houseData.emoji} {houseData.name}
               </p>
             )}
@@ -397,7 +397,7 @@ export function Sidebar({
               <span style={{ fontSize: 12, opacity: todayHasEntry ? 1 : 0.4 }}>🔥</span>
               <span style={{
                 fontFamily: "'Cinzel', serif", fontSize: 10,
-                color: todayHasEntry ? theme.primary : 'rgba(150,150,150,0.6)',
+                color: todayHasEntry ? theme.primary : 'rgba(200,185,165,0.85)',
                 letterSpacing: '0.04em',
               }}>
                 {streak}
@@ -422,7 +422,7 @@ export function Sidebar({
           >
             <div className="flex items-center gap-2.5">
               <Icon size={14} style={{ color: theme.primary, opacity: 0.55 }} />
-              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: theme.primary, opacity: 0.75, letterSpacing: '0.06em' }}>
+              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: theme.primary, opacity: 1, letterSpacing: '0.06em', fontWeight: 700 }}>
                 {label}
               </span>
             </div>
@@ -447,7 +447,7 @@ export function Sidebar({
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl active:scale-[0.98] transition-all shadow-md"
           style={{
             background: theme.primary,
-            fontFamily: "'Lora', Georgia, serif", fontSize: 14, fontWeight: 500,
+            fontFamily: "'Lora', Georgia, serif", fontSize: 14, fontWeight: 700,
             color: '#1A0A06',
             boxShadow: `0 4px 14px ${theme.primaryGlow}`,
             transition: 'all 0.4s ease',
@@ -463,14 +463,14 @@ export function Sidebar({
       {/* ── Search ── */}
       <div className="px-4 pb-3">
         <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7A5C42]" />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#C9A87A]" />
           <input
             type="text"
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Szukaj..."
             style={{ fontFamily: "'Lora', serif", fontSize: 13, background: 'rgba(255,255,255,0.04)' }}
-            className="w-full pl-8 pr-3 py-2 rounded-xl text-[#D4A96A] placeholder:text-[#7A5C42]/60 outline-none transition-colors border"
+            className="w-full pl-8 pr-3 py-2 rounded-xl text-[#D4A96A] placeholder:text-[#BFA882]/75 outline-none transition-colors border"
             onFocus={e => (e.currentTarget.style.borderColor = theme.primary + '60')}
             onBlur={e => (e.currentTarget.style.borderColor = 'rgba(201,169,110,0.15)')}
           />
@@ -479,7 +479,7 @@ export function Sidebar({
 
       {/* ── Spis Wspomnień ── */}
       <div className="border-t pt-3 pb-1.5 px-4 text-center" style={{ borderColor: theme.borderColor }}>
-        <span style={{ fontFamily: "'IM Fell English SC', serif", color: theme.primary, fontSize: 13, letterSpacing: '0.08em' }}>
+        <span style={{ fontFamily: "'IM Fell English SC', serif", color: theme.primary, fontSize: 13, letterSpacing: '0.08em', fontWeight: 700 }}>
           Spis Wspomnień
         </span>
       </div>
@@ -488,16 +488,16 @@ export function Sidebar({
       <div className="flex items-center justify-between px-3 pb-1">
         <button onClick={() => setMonthOffset(o => o - 1)}
           className="p-1 rounded-lg transition-colors"
-          style={{ color: '#7A5C42' }}
+          style={{ color: '#C9A87A' }}
           onMouseEnter={e => (e.currentTarget.style.background = theme.primaryDim)}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <ChevronLeft size={16} />
         </button>
         <div className="flex flex-col items-center gap-0.5">
-          <span style={{ fontFamily: "'IM Fell English SC', serif", fontSize: 13, color: theme.primary, letterSpacing: '0.06em' }}>
+          <span style={{ fontFamily: "'IM Fell English SC', serif", fontSize: 13, color: theme.primary, letterSpacing: '0.06em', fontWeight: 700 }}>
             {PL_MONTHS[activeMonth]}
           </span>
-          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: `${theme.primary}66`, letterSpacing: '0.1em' }}>
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: `${theme.primary}99`, letterSpacing: '0.1em', fontWeight: 700 }}>
             {activeYear}
           </span>
           {monthsWithEntries.has(activeKey) && (
@@ -516,7 +516,7 @@ export function Sidebar({
 
       {filtered.length > 0 && (
         <p className="text-center pb-1"
-          style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: `${theme.primary}55`, letterSpacing: '0.1em' }}>
+          style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: `${theme.primary}99`, letterSpacing: '0.1em', fontWeight: 700 }}>
           {filtered.length === 1 ? '1 wpis' : filtered.length < 5 ? `${filtered.length} wpisy` : `${filtered.length} wpisów`}
         </p>
       )}
@@ -524,7 +524,7 @@ export function Sidebar({
       {/* ── Entries scroll ── */}
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {filtered.length === 0 ? (
-          <p style={{ fontFamily: "'Lora', serif", color: '#7A5C42', fontSize: 12 }}
+          <p style={{ fontFamily: "'Lora', serif", color: '#C9A87A', fontSize: 12, fontWeight: 500 }}
             className="italic text-center py-8 px-3">
             {q ? 'Brak wyników.' : 'Brak wpisów w tym miesiącu.'}
           </p>
@@ -543,10 +543,10 @@ export function Sidebar({
                 >
                   <div className="flex items-start justify-between gap-1">
                     <div className="min-w-0 flex-1">
-                      <p style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: '#9A7A5A' }} className="mb-0.5">
+                      <p style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: '#C9A87A', fontWeight: 600 }} className="mb-0.5">
                         {fmtShort(entry.date)}
                       </p>
-                      <p style={{ fontFamily: "'Playfair Display', serif", color: sel ? theme.primary : '#E0B87A' }}
+                      <p style={{ fontFamily: "'Playfair Display', serif", color: sel ? theme.primary : '#E0B87A', fontWeight: 700 }}
                         className="text-base truncate leading-snug">
                         {entry.title || 'Bez tytułu'}
                       </p>
@@ -568,7 +568,7 @@ export function Sidebar({
         className="flex items-center gap-2 px-5 py-3.5 border-t transition-colors"
         style={{
           borderColor: theme.borderColor,
-          fontFamily: "'Cinzel', serif", color: `${theme.primary}55`, fontSize: 11, letterSpacing: '0.08em',
+          fontFamily: "'Cinzel', serif", color: `${theme.primary}DD`, fontSize: 11, letterSpacing: '0.08em', fontWeight: 700,
         }}
         onMouseEnter={e => (e.currentTarget.style.background = theme.primaryDim)}
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}

@@ -169,11 +169,11 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
 
         {/* Greeting + day/date */}
         <div className="px-4 mb-3">
-          <p style={{ fontFamily: "'Lora', Georgia, serif", color: '#7A5C42', fontSize: 30, lineHeight: 1.15 }}
+          <p style={{ fontFamily: "'Lora', Georgia, serif", color: '#7A5C42', fontSize: 30, lineHeight: 1.15, fontWeight: 500 }}
             className="mb-1">
             {greeting}
           </p>
-          <p style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 15 }}>
+          <p style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 15, fontWeight: 600 }}>
             {day} &nbsp;·&nbsp; {dateLabel}
           </p>
         </div>
@@ -183,7 +183,7 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
 
         {/* Mood */}
         <div className="px-4 mt-4">
-          <p style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 14 }}
+          <p style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 14, fontWeight: 600 }}
             className="text-center mb-3">
             Jak się dziś czujesz?
           </p>
@@ -204,7 +204,7 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
             fontFamily: "'Lora', Georgia, serif",
             color: '#1A0A06',
             fontSize: 17,
-            fontWeight: 400,
+            fontWeight: 500,
           }}
         />
       </div>
@@ -275,7 +275,7 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
       {/* Draft restore banner (for new entries with existing draft) */}
       {isNew && draft.current && (
         <div className="mx-4 mb-2 px-4 py-2.5 rounded-xl border border-[rgba(201,153,63,0.3)] flex items-center justify-between gap-3"
-          style={{ background: 'rgba(201,153,63,0.08)', fontFamily: "'Cinzel', serif", fontSize: 11, color: '#C9993F', letterSpacing: '0.04em' }}>
+          style={{ background: 'rgba(201,153,63,0.08)', fontFamily: "'Cinzel', serif", fontSize: 11, color: '#C9993F', letterSpacing: '0.04em', fontWeight: 600 }}>
           <span>Znaleziono niezapisany szkic</span>
           <button
             onClick={() => { localStorage.removeItem(DRAFT_KEY); draft.current = null; window.location.reload() }}
@@ -298,7 +298,7 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
               ? 'bg-[#C9993F] text-white shadow-md hover:bg-[#D4A84A] active:scale-[0.98]'
               : 'bg-[#C9993F]/20 text-[#7A5C42] cursor-not-allowed',
           ].join(' ')}
-          style={{ fontFamily: "'Lora', Georgia, serif", fontSize: 16, fontWeight: 400 }}
+          style={{ fontFamily: "'Lora', Georgia, serif", fontSize: 16, fontWeight: 700 }}
         >
           {saving ? 'Zapisywanie...' : entry ? 'Zapisz zmiany' : 'Zapisz wpis'}
         </button>

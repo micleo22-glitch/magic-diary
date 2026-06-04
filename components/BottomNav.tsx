@@ -58,7 +58,7 @@ export function BottomNav({
               fontSize: 9,
               fontFamily: "'Cinzel', serif",
               letterSpacing: '0.04em',
-              color: todayHasEntry ? theme.primary : 'rgba(150,150,150,0.7)',
+              color: todayHasEntry ? theme.primary : 'rgba(200,185,165,0.9)',
               lineHeight: 1,
               whiteSpace: 'nowrap',
               transition: 'all 0.3s ease',
@@ -92,12 +92,12 @@ function NavBtn({ icon, label, active, onClick, theme }: {
       onClick={onClick}
       className="flex flex-col items-center gap-1 px-5 py-1.5 rounded-xl transition-all duration-200"
       style={{
-        color: active ? theme.primary : 'rgba(122,92,66,0.8)',
+        color: active ? theme.primary : 'rgba(200,170,120,0.9)',
       }}
     >
       {icon}
       <span
-        style={{ fontFamily: "'Cinzel', serif", fontSize: 11 }}
+        style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
         className="uppercase tracking-widest"
       >
         {label}
