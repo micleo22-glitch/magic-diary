@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createUserClient } from '@/lib/supabase-admin'
 import { xai } from '@ai-sdk/xai'
-import { generateText, tool } from 'ai'
+import { generateText, tool, stepCountIs } from 'ai'
 import { z } from 'zod'
 
 // ── MCP server for Magic Diary ────────────────────────────────────────────────
@@ -214,7 +214,7 @@ GŁOS: teatralne pauzy, chłodna ironia, metafory alchemiczne. Kończ zawsze chi
           },
         }),
       },
-      maxSteps: 3,
+      stopWhen: stepCountIs(3),
       maxTokens: 350,
       temperature: 0.85,
     })
