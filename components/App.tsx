@@ -612,6 +612,21 @@ export function App() {
                   </button>
                 ))}
               </div>
+
+              {/* Wyloguj */}
+              <button
+                onClick={() => { setMenuOpen(false); handleLogout() }}
+                className="w-full flex items-center gap-3 px-7 py-4 border-t transition-colors"
+                style={{
+                  borderColor: houseTheme.borderColor,
+                  fontFamily: "'Cinzel', serif", color: `${houseTheme.primary}CC`, fontSize: 12, letterSpacing: '0.08em', fontWeight: 700,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = houseTheme.primaryDim)}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <LogOut size={15} style={{ opacity: 0.75 }} />
+                Wyloguj się
+              </button>
             </motion.div>
           </>
         )}
