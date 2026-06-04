@@ -178,6 +178,7 @@ export function EntriesList({
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Szukaj wspomnień..."
+            tabIndex={-1}
             style={{ fontFamily: "'Lora', serif", fontSize: 16, fontWeight: 500 }}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#E8DCC0] border border-[rgba(201,169,110,0.3)] text-[#1A0A06] placeholder:text-[#7A5C42]/70 outline-none focus:border-[#C9993F] transition-colors"
           />
