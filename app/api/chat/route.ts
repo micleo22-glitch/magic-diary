@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
-import https from 'node:https'
+import { NextRequest } from 'next/server'
 import { createUserClient } from '@/lib/supabase-admin'
+import { xai } from '@ai-sdk/xai'
+import { streamText, tool, stepCountIs } from 'ai'
+import { z } from 'zod'
 
 // ── HTML stripping ────────────────────────────────────────────────────────────
 function stripHtml(html: string): string {
@@ -87,131 +89,9 @@ ZASADY ŻELAZNE:
 Masz dostęp do narzędzia get_diary_entries — używaj go gdy uczeń nawiązuje do przeszłości lub chcesz dostrzec wzorzec, który on sam przeoczył.
 ${SNAPE_FEW_SHOT}`,
   },
-  // Przykład kolejnego nauczyciela — odkomentuj i dostosuj:
-  // dumbledore: {
-  //   name: 'Albus Dumbledore',
-  //   system: `Jesteś Albusem Dumbledore'em...`,
-  // },
 }
 
 const DEFAULT_TEACHER = 'snape'
-
-// ── Tool definitions ──────────────────────────────────────────────────────────
-const DIARY_TOOLS = [
-  {
-    type: 'function',
-    function: {
-      name: 'get_diary_entries',
-      description:
-        'Pobierz starsze wpisy z dziennika ucznia. Używaj gdy uczeń nawiązuje do przeszłości, porównuje się z wcześniejszym sobą lub chcesz zobaczyć wzorce w jego wpisach.',
-      parameters: {
-        type: 'object',
-        properties: {
-          date_from: {
-            type: 'string',
-            description: 'Data początkowa w formacie YYYY-MM-DD (opcjonalna)',
-          },
-          date_to: {
-            type: 'string',
-            description: 'Data końcowa w formacie YYYY-MM-DD (opcjonalna)',
-          },
-          limit: {
-            type: 'integer',
-            description: 'Maksymalna liczba wpisów do pobrania (domyślnie 5, maksymalnie 10)',
-          },
-        },
-      },
-    },
-  },
-]
-
-// ── Tool executor ─────────────────────────────────────────────────────────────
-async function executeTool(
-  name: string,
-  args: Record<string, unknown>,
-  accessToken: string,
-): Promise<string> {
-  if (name === 'get_diary_entries') {
-    const db = createUserClient(accessToken)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query: any = db
-      .from('entries')
-      .select('date, title, mood, content')
-      .order('date', { ascending: false })
-
-    if (args.date_from) query = query.gte('date', args.date_from as string)
-    if (args.date_to) query = query.lte('date', args.date_to as string)
-
-    const limit = Math.min(typeof args.limit === 'number' ? args.limit : 5, 10)
-    query = query.limit(limit)
-
-    const { data, error } = await query
-    if (error || !data?.length) return 'Brak wpisów spełniających kryteria.'
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return JSON.stringify(data.map((r: any) => ({
-      data: r.date,
-      tytuł: r.title || '(bez tytułu)',
-      nastrój: r.mood ? MOOD_LABEL[r.mood as number] : null,
-      treść: stripHtml(r.content ?? '').slice(0, 400),
-    })))
-  }
-  return 'Nieznane narzędzie.'
-}
-
-// ── HTTPS wrapper (handles SSL cert on Windows dev) ───────────────────────────
-function makeAgent() {
-  if (process.env.NODE_ENV !== 'development') return undefined
-  return new https.Agent({ rejectUnauthorized: false })
-}
-
-function xaiFetch(
-  body: string,
-  apiKey: string,
-): Promise<{ ok: boolean; status: number; text: () => Promise<string> }> {
-  return new Promise((resolve, reject) => {
-    const payload = Buffer.from(body, 'utf8')
-    const req = https.request(
-      {
-        hostname: 'api.x.ai',
-        path: '/v1/chat/completions',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Length': payload.length,
-        },
-        agent: makeAgent(),
-      },
-      (res) => {
-        const chunks: Buffer[] = []
-        res.on('data', (c: Buffer) => chunks.push(c))
-        res.on('end', () => {
-          const text = Buffer.concat(chunks).toString('utf8')
-          resolve({
-            ok: (res.statusCode ?? 500) >= 200 && (res.statusCode ?? 500) < 300,
-            status: res.statusCode ?? 500,
-            text: () => Promise.resolve(text),
-          })
-        })
-      },
-    )
-    req.on('error', reject)
-    req.write(payload)
-    req.end()
-  })
-}
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface ToolCall {
-  id: string
-  type: 'function'
-  function: { name: string; arguments: string }
-}
-
-type ApiMessage =
-  | { role: 'system' | 'user' | 'assistant'; content: string | null; tool_calls?: ToolCall[] }
-  | { role: 'tool'; content: string; tool_call_id: string }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -223,7 +103,12 @@ export async function POST(req: NextRequest) {
   } = await req.json()
 
   const apiKey = process.env.XAI_API_KEY
-  if (!apiKey) return NextResponse.json({ error: 'Brak klucza API' }, { status: 500 })
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'Brak klucza API' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
   const persona = TEACHERS[teacher] ?? TEACHERS[DEFAULT_TEACHER]
 
@@ -238,93 +123,68 @@ export async function POST(req: NextRequest) {
       (contentText ? `\nTreść:\n${contentText}` : '')
   }
 
-  const apiMessages: ApiMessage[] = [
-    { role: 'system', content: systemContent },
-    ...messages.map((m: { role: string; text: string }) => ({
+  const result = streamText({
+    model: xai('grok-4.3'),
+    system: systemContent,
+    messages: messages.map((m: { role: string; text: string }) => ({
       role: m.role as 'user' | 'assistant',
       content: m.text,
     })),
-  ]
+    tools: accessToken
+      ? {
+          get_diary_entries: tool({
+            description:
+              'Pobierz starsze wpisy z dziennika ucznia. Używaj gdy uczeń nawiązuje do przeszłości, porównuje się z wcześniejszym sobą lub chcesz zobaczyć wzorce w jego wpisach.',
+            inputSchema: z.object({
+              date_from: z
+                .string()
+                .optional()
+                .describe('Data początkowa w formacie YYYY-MM-DD (opcjonalna)'),
+              date_to: z
+                .string()
+                .optional()
+                .describe('Data końcowa w formacie YYYY-MM-DD (opcjonalna)'),
+              limit: z
+                .number()
+                .int()
+                .optional()
+                .describe('Maksymalna liczba wpisów do pobrania (domyślnie 5, maksymalnie 10)'),
+            }),
+            execute: async ({ date_from, date_to, limit }) => {
+              const db = createUserClient(accessToken)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              let query: any = db
+                .from('entries')
+                .select('date, title, mood, content')
+                .order('date', { ascending: false })
 
-  // Tool call loop — max 3 iterations to prevent infinite loops
-  for (let iteration = 0; iteration < 3; iteration++) {
-    const requestBody = JSON.stringify({
-      model: 'grok-4.3',
-      messages: apiMessages,
-      tools: accessToken ? DIARY_TOOLS : undefined,
-      tool_choice: accessToken ? 'auto' : undefined,
-      max_tokens: 350,
-      temperature: 0.85,
-    })
+              if (date_from) query = query.gte('date', date_from)
+              if (date_to) query = query.lte('date', date_to)
 
-    const response = await xaiFetch(requestBody, apiKey)
+              const safeLimit = Math.min(typeof limit === 'number' ? limit : 5, 10)
+              query = query.limit(safeLimit)
 
-    if (!response.ok) {
-      const err = await response.text()
-      return NextResponse.json({ error: err }, { status: response.status })
-    }
+              const { data, error } = await query
+              if (error || !data?.length) return 'Brak wpisów spełniających kryteria.'
 
-    const raw = await response.text()
-    console.log('[chat/route] xAI raw (iter %d):', iteration, raw.slice(0, 300))
-
-    let data: {
-      choices?: {
-        message?: {
-          content?: string | null
-          tool_calls?: ToolCall[]
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              return JSON.stringify(data.map((r: any) => ({
+                data: r.date,
+                tytuł: r.title || '(bez tytułu)',
+                nastrój: r.mood ? MOOD_LABEL[r.mood as number] : null,
+                treść: stripHtml(r.content ?? '').slice(0, 400),
+              })))
+            },
+          }),
         }
-        finish_reason?: string
-      }[]
-    }
-    try {
-      data = JSON.parse(raw)
-    } catch {
-      return NextResponse.json({ error: 'Nieprawidłowa odpowiedź z API' }, { status: 502 })
-    }
+      : undefined,
+    maxOutputTokens: 350,
+    temperature: 0.85,
+    stopWhen: stepCountIs(3), // agentic loop — SDK handles tool calls automatically
+    onError: (error) => {
+      console.error('[chat/route] streamText error:', error)
+    },
+  })
 
-    const choice = data.choices?.[0]
-    const assistantMsg = choice?.message
-    const finishReason = choice?.finish_reason
-
-    if (!assistantMsg) {
-      return NextResponse.json({ error: 'Brak odpowiedzi z API' }, { status: 502 })
-    }
-
-    // Final text response
-    if (finishReason !== 'tool_calls' && assistantMsg.content) {
-      return NextResponse.json({ reply: assistantMsg.content })
-    }
-
-    // Tool calls — execute and loop
-    if (finishReason === 'tool_calls' && assistantMsg.tool_calls?.length) {
-      apiMessages.push({
-        role: 'assistant',
-        content: assistantMsg.content ?? null,
-        tool_calls: assistantMsg.tool_calls,
-      })
-
-      for (const toolCall of assistantMsg.tool_calls) {
-        let args: Record<string, unknown> = {}
-        try { args = JSON.parse(toolCall.function.arguments) } catch { /* malformed args */ }
-
-        const result = accessToken
-          ? await executeTool(toolCall.function.name, args, accessToken)
-          : 'Brak autoryzacji do pobierania wpisów.'
-
-        apiMessages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: result,
-        })
-      }
-      continue
-    }
-
-    return NextResponse.json(
-      { error: `Nieoczekiwany finish_reason: ${finishReason ?? 'unknown'}` },
-      { status: 502 },
-    )
-  }
-
-  return NextResponse.json({ error: 'Zbyt wiele iteracji narzędzi' }, { status: 502 })
+  return result.toTextStreamResponse()
 }

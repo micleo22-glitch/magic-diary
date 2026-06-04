@@ -92,7 +92,9 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     getChatMessages(entry.id).then(history => {
+      if (cancelled) return
       if (history.length > 0) {
         setMessages(history.map(m => ({ role: m.role, text: m.text })))
       } else {
@@ -102,6 +104,7 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
       }
       setHistoryLoaded(true)
     })
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry.id])
 
@@ -113,6 +116,7 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
     setMessages(updated)
     saveChatMessage(entry.id, 'user', text)
     setLoading(true)
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -128,16 +132,38 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
           accessToken,
         }),
       })
-      const data = await res.json()
-      if (!res.ok || !data.reply) {
-        const msg = data.error ?? 'Brak odpowiedzi z API.'
-        const errText = `Coś poszło nie tak: ${msg}`
+
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}))
+        const errText = `Coś poszło nie tak: ${data.error ?? res.statusText}`
         setMessages(prev => [...prev, { role: 'assistant', text: errText }])
         saveChatMessage(entry.id, 'assistant', errText)
         return
       }
-      setMessages(prev => [...prev, { role: 'assistant', text: data.reply }])
-      saveChatMessage(entry.id, 'assistant', data.reply)
+
+      // Stream response — add empty assistant bubble, fill progressively
+      setMessages(prev => [...prev, { role: 'assistant' as const, text: '' }])
+      setLoading(false)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let assistantText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        assistantText += chunk
+        setMessages(prev => {
+          const next = [...prev]
+          next[next.length - 1] = { role: 'assistant', text: assistantText }
+          return next
+        })
+      }
+
+      if (assistantText) {
+        saveChatMessage(entry.id, 'assistant', assistantText)
+      }
     } catch {
       const errText = 'Coś poszło nie tak. Spróbuj ponownie.'
       setMessages(prev => [...prev, { role: 'assistant', text: errText }])
