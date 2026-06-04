@@ -5,6 +5,7 @@ import { Send, Wand2, Mic, MicOff } from 'lucide-react'
 import { Entry } from '@/types/entry'
 import { supabase } from '@/lib/supabase'
 import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
+import { getChatMessages, saveChatMessage } from '@/lib/storage'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -16,15 +17,14 @@ interface AgentChatProps {
   theme?: HouseTheme
 }
 
+const OPENING_LINE = (title: string) =>
+  title
+    ? `"${title}"... Może chciałbyś mi się z tego wytłumaczyć?`
+    : 'Napisałeś to. Słucham — może chciałbyś mi się z tego wytłumaczyć?'
+
 export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      text: entry.title
-        ? `"${entry.title}"... Może chciałbyś mi się z tego wytłumaczyć?`
-        : 'Napisałeś to. Słucham — może chciałbyś mi się z tego wytłumaczyć?',
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -44,12 +44,27 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
     })
   }, [])
 
+  useEffect(() => {
+    getChatMessages(entry.id).then(history => {
+      if (history.length > 0) {
+        setMessages(history.map(m => ({ role: m.role, text: m.text })))
+      } else {
+        const opening = OPENING_LINE(entry.title)
+        setMessages([{ role: 'assistant', text: opening }])
+        saveChatMessage(entry.id, 'assistant', opening)
+      }
+      setHistoryLoaded(true)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry.id])
+
   const send = async () => {
     const text = input.trim()
     if (!text || loading) return
     setInput('')
     const updated = [...messages, { role: 'user' as const, text }]
     setMessages(updated)
+    saveChatMessage(entry.id, 'user', text)
     setLoading(true)
     try {
       const res = await fetch('/api/chat', {
@@ -69,12 +84,17 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
       const data = await res.json()
       if (!res.ok || !data.reply) {
         const msg = data.error ?? 'Brak odpowiedzi z API.'
-        setMessages(prev => [...prev, { role: 'assistant', text: `Coś poszło nie tak: ${msg}` }])
+        const errText = `Coś poszło nie tak: ${msg}`
+        setMessages(prev => [...prev, { role: 'assistant', text: errText }])
+        saveChatMessage(entry.id, 'assistant', errText)
         return
       }
       setMessages(prev => [...prev, { role: 'assistant', text: data.reply }])
+      saveChatMessage(entry.id, 'assistant', data.reply)
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', text: 'Coś poszło nie tak. Spróbuj ponownie.' }])
+      const errText = 'Coś poszło nie tak. Spróbuj ponownie.'
+      setMessages(prev => [...prev, { role: 'assistant', text: errText }])
+      saveChatMessage(entry.id, 'assistant', errText)
     } finally {
       setLoading(false)
     }
@@ -150,6 +170,13 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
 
       {/* Messages */}
       <div className="px-5 py-4 flex flex-col gap-3 max-h-72 overflow-y-auto">
+        {!historyLoaded && (
+          <div className="flex justify-center py-4">
+            <span style={{ fontFamily: "'Lora', serif", fontSize: 13, color: 'rgba(201,153,63,0.4)', fontStyle: 'italic' }}>
+              Wczytywanie historii...
+            </span>
+          </div>
+        )}
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div

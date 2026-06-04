@@ -88,3 +88,50 @@ export async function getEntry(id: string): Promise<Entry | undefined> {
   if (error) return undefined
   return rowToEntry(data)
 }
+
+// ── Chat messages ──────────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  createdAt: string
+}
+
+export async function getChatMessages(entryId: string): Promise<ChatMessage[]> {
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('*')
+    .eq('entry_id', entryId)
+    .order('created_at', { ascending: true })
+  if (error) { console.error(error); return [] }
+  return (data ?? []).map(row => ({
+    id: row.id,
+    role: row.role,
+    text: row.text,
+    createdAt: row.created_at,
+  }))
+}
+
+export async function saveChatMessage(
+  entryId: string,
+  role: 'user' | 'assistant',
+  text: string,
+): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  const { error } = await supabase.from('chat_messages').insert({
+    id: genId(),
+    entry_id: entryId,
+    user_id: user.id,
+    role,
+    text,
+    created_at: new Date().toISOString(),
+  })
+  if (error) console.error(error)
+}
+
+export async function clearChatMessages(entryId: string): Promise<void> {
+  const { error } = await supabase.from('chat_messages').delete().eq('entry_id', entryId)
+  if (error) console.error(error)
+}

@@ -307,6 +307,7 @@ export function App() {
   const houseTheme    = getHouseTheme(house)
   const todayIso      = new Date().toISOString().slice(0, 10)
   const todayHasEntry = entries.some(e => e.date === todayIso)
+  const rightPanel    = RightPanel()
 
   // ─── Settings panels (shared between mobile & desktop, rendered differently) ───
 
@@ -646,7 +647,7 @@ export function App() {
       {/* ===== DESKTOP: Right panel ===== */}
       <div className="hidden md:flex flex-1 overflow-y-auto">
         <div className="w-full">
-          <RightPanel />
+          {rightPanel}
         </div>
       </div>
 
@@ -704,7 +705,7 @@ export function App() {
               onEntryDeleted={handleDeleted}
             />
           ) : (
-            <RightPanel />
+            rightPanel
           )}
         </div>
         <div className="flex-shrink-0">
