@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Feather, Search, User, GraduationCap, ShoppingBag, Settings,
-  LogOut, ChevronRight, ChevronLeft, X, Download, Trash2, Mail, Heart,
+  LogOut, ChevronRight, ChevronLeft, X, Download, Trash2, Mail, Heart, BookOpen,
 } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { HouseTheme, DEFAULT_THEME, streakLabel } from '@/lib/houseTheme'
@@ -334,6 +334,17 @@ export function Sidebar({
                 )
               })}
             </div>
+          </SectionCard>
+
+          <SectionCard label="Docs & MCP">
+            <a href="/docs" target="_blank" rel="noopener noreferrer"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border mb-2 transition-all"
+              style={{ background: 'rgba(255,255,255,0.02)', borderColor: theme.borderColor, textDecoration: 'none' }}>
+              <BookOpen size={13} style={{ color: theme.primary, opacity: 1 }} />
+              <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, color: 'rgba(201,153,63,0.95)', letterSpacing: '0.06em', fontWeight: 700 }}>
+                API & MCP Docs
+              </span>
+            </a>
           </SectionCard>
 
           <SectionCard label="Dane">

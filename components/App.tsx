@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   X, User, GraduationCap, ShoppingBag, Settings, LogOut,
-  Download, Trash2, Mail, KeyRound, Star,
+  Download, Trash2, Mail, KeyRound, Star, BookOpen,
 } from 'lucide-react'
 import { SplashScreen } from './SplashScreen'
 import { EntryEditor } from './EntryEditor'
@@ -387,6 +387,22 @@ export function App() {
               )
             })}
           </div>
+        </SectionCard>
+
+        {/* Docs & MCP */}
+        <SectionCard label="Docs & MCP">
+          <a
+            href="/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[rgba(201,153,63,0.12)] hover:border-[rgba(201,153,63,0.3)] transition-all"
+            style={{ background: 'rgba(255,255,255,0.02)', textDecoration: 'none', display: 'flex' }}
+          >
+            <BookOpen size={14} style={{ color: 'rgba(201,153,63,0.5)' }} />
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: 'rgba(201,153,63,0.7)', letterSpacing: '0.06em' }}>
+              API & MCP Docs
+            </span>
+          </a>
         </SectionCard>
 
         {/* Dane */}

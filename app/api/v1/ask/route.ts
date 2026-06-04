@@ -50,10 +50,10 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { question, date } = body as { question: string; date?: string }
+  const { message, date } = body as { message: string; date?: string }
 
-  if (!question || typeof question !== 'string') {
-    return NextResponse.json({ error: 'Wymagane pole: question (string)' }, { status: 400 })
+  if (!message || typeof message !== 'string') {
+    return NextResponse.json({ error: 'Wymagane pole: message (string) — odpowiedź ucznia na pytanie nauczyciela' }, { status: 400 })
   }
 
   let systemContent = SNAPE_SYSTEM
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
   const result = await generateText({
     model: xai('grok-4.3'),
     system: systemContent,
-    messages: [{ role: 'user', content: question }],
+    messages: [{ role: 'user', content: message }],
     tools: {
       get_diary_entries: tool({
         description: 'Pobierz starsze wpisy z dziennika ucznia.',

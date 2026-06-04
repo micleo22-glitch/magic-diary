@@ -54,17 +54,17 @@ const MCP_TOOLS = [
   },
   {
     name: 'ask_snape',
-    description: 'Zadaje pytanie agentowi Severusowi Snape\'owi. Snape analizuje dziennik i odpowiada w charakterystycznym stylu — zwięźle, ironicznie, z chirurgicznym pytaniem na końcu.',
+    description: 'Wysyła wiadomość do nauczyciela AI (Severus Snape) — odpowiedź ucznia na pytanie nauczyciela lub nową refleksję. Nauczyciel analizuje dziennik i odpowiada w charakterystycznym stylu.',
     inputSchema: {
       type: 'object',
       properties: {
-        question: { type: 'string', description: 'Pytanie lub refleksja do Snape\'a' },
+        message: { type: 'string', description: 'Wiadomość ucznia — odpowiedź na pytanie nauczyciela lub nowa refleksja' },
         date: {
           type: 'string',
           description: 'Opcjonalna data YYYY-MM-DD — dostarcza kontekst konkretnego wpisu',
         },
       },
-      required: ['question'],
+      required: ['message'],
     },
   },
   {
@@ -154,8 +154,8 @@ async function handleToolCall(name: string, args: Record<string, any>, token: st
   }
 
   if (name === 'ask_snape') {
-    const { question, date } = args
-    if (!question) return { error: { code: -32602, message: 'Wymagane pole: question' } }
+    const { message: userMessage, date } = args
+    if (!userMessage) return { error: { code: -32602, message: 'Wymagane pole: message' } }
 
     const apiKey = process.env.XAI_API_KEY
     if (!apiKey) return { error: { code: -32603, message: 'Brak klucza API serwera' } }
@@ -185,7 +185,7 @@ GŁOS: teatralne pauzy, chłodna ironia, metafory alchemiczne. Kończ zawsze chi
     const snapeResult = await generateText({
       model: xai('grok-4.3'),
       system: systemContent,
-      messages: [{ role: 'user', content: question }],
+      messages: [{ role: 'user', content: userMessage as string }],
       tools: {
         get_diary_entries: tool({
           description: 'Pobierz starsze wpisy z dziennika.',
