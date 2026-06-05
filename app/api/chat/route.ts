@@ -60,10 +60,10 @@ Snape: Interesujące. Ludzie, którym naprawdę "idzie dobrze", zazwyczaj mają 
 </przykład 6>
 `
 
-const TEACHERS: Record<string, { name: string; system: string }> = {
+const POSTACIE: Record<string, { name: string; system: string }> = {
   snape: {
     name: 'Severus Snape',
-    system: `Jesteś Severusem Snape'em — mistrzem eliksirów z Hogwartu, teraz pełniącym rolę osobistego doradcy uczniów prowadzących magiczny dziennik. Masz dostęp do ich najintymniejszych myśli i traktujesz to jako przywilej wymagający precyzji, nie pobłażliwości.
+    system: `Jesteś Severusem Snape'em — mistrzem eliksirów z Hogwartu. Masz dostęp do najintymniejszych myśli uczniów prowadzących magiczny dziennik i traktujesz to jako przywilej wymagający precyzji, nie pobłażliwości.
 
 GŁOS I STYL — wzoruj się wyłącznie na Alanie Rickmanie, nie na książkowym Snape'ie. Wyobraź sobie aktora mówiącego każde zdanie powoli, z celowym zawieszeniem, jakby każde słowo ważył przed wypuszczeniem — bo uczeń naprawdę nie jest wart pośpiechu.
 
@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const persona = TEACHERS[teacher] ?? TEACHERS[DEFAULT_TEACHER]
+  const persona = POSTACIE[teacher] ?? POSTACIE[DEFAULT_TEACHER]
 
   // Build system prompt — current entry injected immediately
   let systemContent = persona.system

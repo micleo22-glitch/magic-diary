@@ -296,7 +296,7 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
             marginLeft: 4,
           }}
         >
-          doradca osobisty
+          Mistrz Eliksirów
         </span>
         <div className="ml-auto w-2 h-2 rounded-full" style={{ background: '#4CAF50', boxShadow: '0 0 6px #4CAF50' }} />
       </div>
