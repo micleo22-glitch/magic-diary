@@ -191,7 +191,7 @@ export function EntriesList({
         </div>
 
         {/* Sort pills + favorites toggle */}
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap justify-center">
           <button
             onClick={() => setFavOnly(v => !v)}
             style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700 }}

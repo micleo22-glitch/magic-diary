@@ -21,10 +21,10 @@ export function BottomNav({
 
   return (
     <nav
-      className="flex items-center justify-around px-2 pt-2 border-t border-[rgba(201,169,110,0.08)]"
+      className="flex items-stretch border-t border-[rgba(201,169,110,0.08)]"
       style={{
         background: theme.navBg,
-        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         transition: 'background 0.4s ease',
       }}
     >
@@ -64,7 +64,7 @@ function NavBtn({ icon, label, active, onClick, theme }: {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-1 px-5 py-1.5 rounded-xl transition-all duration-200"
+      className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl transition-all duration-200"
       style={{
         color: active ? theme.primary : 'rgba(200,170,120,0.9)',
       }}

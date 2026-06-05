@@ -35,7 +35,7 @@ function getInitials(email: string): string {
 
 const MENU_ITEMS = [
   { icon: User,           label: 'Profil' },
-  { icon: GraduationCap,  label: 'Nauczyciele' },
+  { icon: GraduationCap,  label: 'Postacie' },
   { icon: ShoppingBag,    label: 'Sklep' },
   { icon: Settings,       label: 'Ustawienia' },
 ]
@@ -619,7 +619,7 @@ export function App() {
                     <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.08em' }}>
                       {label}
                     </span>
-                    {(label === 'Nauczyciele' || label === 'Sklep') && (
+                    {(label === 'Postacie' || label === 'Sklep') && (
                       <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full"
                         style={{ background: houseTheme.primaryDim, color: houseTheme.primary, opacity: 0.6, fontFamily: "'Cinzel', serif", letterSpacing: '0.06em' }}>
                         Wkrótce

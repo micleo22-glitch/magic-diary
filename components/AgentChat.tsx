@@ -288,18 +288,6 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
         >
           SEVERUS SNAPE
         </span>
-        <span
-          style={{
-            fontFamily: "'Lora', serif",
-            fontSize: 11,
-            color: 'rgba(201,153,63,0.45)',
-            fontStyle: 'italic',
-            marginLeft: 4,
-          }}
-        >
-          doradca osobisty
-        </span>
-        <div className="ml-auto w-2 h-2 rounded-full" style={{ background: '#4CAF50', boxShadow: '0 0 6px #4CAF50' }} />
       </div>
 
       {/* Messages */}

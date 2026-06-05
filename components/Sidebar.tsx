@@ -51,7 +51,7 @@ const HOUSES = [
 
 const NAV_ITEMS = [
   { icon: User,          label: 'Profil' },
-  { icon: GraduationCap, label: 'Nauczyciele' },
+  { icon: GraduationCap, label: 'Postacie' },
   { icon: ShoppingBag,   label: 'Sklep' },
   { icon: Settings,      label: 'Ustawienia' },
 ]
@@ -469,7 +469,7 @@ export function Sidebar({
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              {(label === 'Nauczyciele' || label === 'Sklep') && (
+              {(label === 'Postacie' || label === 'Sklep') && (
                 <span style={{
                   fontFamily: "'Cinzel', serif", fontSize: 7, letterSpacing: '0.06em',
                   color: theme.primary, opacity: 0.4, background: theme.primaryDim,
