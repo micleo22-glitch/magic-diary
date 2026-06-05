@@ -96,7 +96,6 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
 
   const startTypewriter = (msgIndex: number, onFinish: (full: string) => void) => {
     stopTypewriter()
-    streamBufferRef.current = ''
     displayedLenRef.current = 0
     streamDoneRef.current = false
 
@@ -207,6 +206,8 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
       const decoder = new TextDecoder()
       const entryId = entry.id
       let started = false
+      streamBufferRef.current = ''
+      streamDoneRef.current = false
 
       while (true) {
         const { done, value } = await reader.read()
