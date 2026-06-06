@@ -18,6 +18,7 @@ import { Onboarding } from './Onboarding'
 import { getEntries, deleteEntry } from '@/lib/storage'
 import { getFavoriteIds, toggleFavorite } from '@/lib/favorites'
 import { supabase } from '@/lib/supabase'
+import { profileFromSession, getCachedProfile, cacheProfile, saveProfile, clearCachedProfile } from '@/lib/profile'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { toast } from '@/lib/toast'
 import { getHouseTheme, streakLabel } from '@/lib/houseTheme'
@@ -154,41 +155,61 @@ export function App() {
   const [house, setHouse] = useState('')
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [profileChecked, setProfileChecked] = useState(false)
 
+  // First paint: pre-fill from cache only (server metadata is the source of truth).
   useEffect(() => {
-    const savedName = localStorage.getItem('magic_diary_username')
-    const savedHouse = localStorage.getItem('magic_diary_house')
-    const onboardingDone = localStorage.getItem('magic_diary_onboarding_done')
-    if (savedName) { setUsername(savedName); setUsernameInput(savedName) }
-    if (savedHouse) setHouse(savedHouse)
-    if (!onboardingDone) setShowOnboarding(true)
+    const cached = getCachedProfile()
+    if (cached.username) { setUsername(cached.username); setUsernameInput(cached.username) }
+    if (cached.house) setHouse(cached.house)
     setFavoriteIds(getFavoriteIds())
+  }, [])
+
+  // Apply the authoritative profile from the account's user_metadata, falling back
+  // to the localStorage cache (legacy profiles lived only there).
+  const applyProfile = useCallback((s: Session | null) => {
+    const server = profileFromSession(s)
+    const cached = getCachedProfile()
+
+    const name  = server.username || cached.username || ''
+    const h     = server.house    || cached.house    || ''
+    const done  = server.onboardingDone || !!cached.onboardingDone
+
+    // Authoritative — set unconditionally so nothing lingers from a previous account.
+    setUsername(name); setUsernameInput(name)
+    setHouse(h)
+    setShowOnboarding(!done)
+    setProfileChecked(true)
+
+    // One-time migration: backfill legacy localStorage-only profiles into the account.
+    if (done && !server.onboardingDone) {
+      saveProfile({ username: name, house: h, onboardingDone: true })
+    } else {
+      cacheProfile({ username: name, house: h, onboardingDone: done })
+    }
   }, [])
 
   function saveMobileUsername() {
     const trimmed = usernameInput.trim()
     if (!trimmed) return
-    localStorage.setItem('magic_diary_username', trimmed)
-    setUsername(trimmed)
+    persistUsername(trimmed)
     toast('Nazwa zapisana', 'success')
   }
 
+  function persistUsername(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setUsername(trimmed)
+    setUsernameInput(trimmed)
+    saveProfile({ username: trimmed })
+  }
+
   function selectMobileHouse(id: string) {
-    localStorage.setItem('magic_diary_house', id)
     setHouse(id)
+    saveProfile({ house: id })
     const h = HOUSES.find(h => h.id === id)
     toast(`Dom ${h?.name} wybrany`, 'success')
   }
-
-  // Auth listener
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s)
-      if (!s) { setView('splash'); setEntries([]) }
-    })
-    return () => subscription.unsubscribe()
-  }, [])
 
   const reload = useCallback(async () => {
     const data = await getEntries()
@@ -196,7 +217,27 @@ export function App() {
     return data
   }, [])
 
-  useEffect(() => { reload() }, [reload])
+  // Auth listener — hydrate profile + entries once the account session is known.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const s = data.session
+      setSession(s)
+      if (s) { applyProfile(s); reload() }
+      else setProfileChecked(true)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s)
+      if (!s) {
+        setView('splash'); setEntries([])
+        setUsername(''); setUsernameInput(''); setHouse(''); setShowOnboarding(false)
+        clearCachedProfile()
+        setProfileChecked(true)
+        return
+      }
+      if (event === 'SIGNED_IN') { applyProfile(s); reload() }
+    })
+    return () => subscription.unsubscribe()
+  }, [applyProfile, reload])
 
   const openToday = useCallback(async () => {
     const data = await reload()
@@ -257,6 +298,10 @@ export function App() {
 
   if (!session) return <><ToastContainer /><AuthScreen /></>
 
+  // Wait for the account profile before deciding whether to show onboarding,
+  // so a logged-in user never flashes the onboarding flow again.
+  if (!profileChecked) return null
+
   if (showOnboarding) {
     return (
       <>
@@ -264,6 +309,10 @@ export function App() {
         <Onboarding onDone={(name, h) => {
           if (name) { setUsername(name); setUsernameInput(name) }
           if (h) setHouse(h)
+          const patch: { username?: string; house?: string; onboardingDone: boolean } = { onboardingDone: true }
+          if (name) patch.username = name
+          if (h) patch.house = h
+          saveProfile(patch)
           setShowOnboarding(false)
         }} />
       </>
@@ -679,7 +728,7 @@ export function App() {
           house={house}
           theme={houseTheme}
           onLogout={handleLogout}
-          onUsernameChange={(v) => { setUsername(v); setUsernameInput(v) }}
+          onUsernameChange={persistUsername}
           onHouseChange={selectMobileHouse}
           onExport={() => { exportEntries(entries); toast('Plik pobrany', 'success') }}
           onDeleteAll={handleDeleteAll}
