@@ -19,6 +19,17 @@ function useToken() {
   return { token, loading }
 }
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [breakpoint])
+  return isMobile
+}
+
 function CopyButton({ text, small }: { text: string; small?: boolean }) {
   const [copied, setCopied] = useState(false)
   const copy = () => {
@@ -75,8 +86,8 @@ function ToolBadge() {
 
 function ParamTable({ rows }: { rows: { name: string; type: string; required?: boolean; desc: string }[] }) {
   return (
-    <div className="rounded-lg overflow-hidden my-4" style={{ border: '1px solid #e5e5e5' }}>
-      <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+    <div className="rounded-lg overflow-x-auto my-4" style={{ border: '1px solid #e5e5e5' }}>
+      <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 440 }}>
         <thead>
           <tr style={{ background: '#fafafa', borderBottom: '1px solid #e5e5e5' }}>
             <th className="px-4 py-2 text-left" style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em', width: '30%' }}>Parametr</th>
@@ -368,6 +379,7 @@ export default function DocsPage() {
   const [section, setSection] = useState<Section>('create')
   const [baseUrl, setBaseUrl] = useState('https://your-app.vercel.app')
   const [mounted, setMounted] = useState(false)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     setBaseUrl(window.location.origin)
@@ -381,8 +393,8 @@ export default function DocsPage() {
 
       {/* Header */}
       <header style={{ borderBottom: '1px solid #e5e5e5', position: 'sticky', top: 0, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', zIndex: 50 }}>
-        <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '0 16px' : '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 16, minWidth: 0 }}>
             <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
               <Wand2 size={16} style={{ color: '#111' }} />
               <span style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>Magic Diary</span>
@@ -419,11 +431,11 @@ export default function DocsPage() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px', display: 'flex', gap: 40 }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '24px 16px' : '32px 24px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 24 : 40 }}>
 
         {/* Sidebar */}
-        <aside style={{ width: 200, flexShrink: 0 }}>
-          <div style={{ position: 'sticky', top: 80 }}>
+        <aside style={{ width: isMobile ? '100%' : 200, flexShrink: 0 }}>
+          <div style={{ position: isMobile ? 'static' : 'sticky', top: isMobile ? undefined : 80 }}>
             {/* Token */}
             <TokenGenerator />
 
@@ -477,9 +489,9 @@ export default function DocsPage() {
               <p style={{ fontSize: 14, color: '#555', lineHeight: 1.7, marginBottom: 14 }}>
                 Publiczne API umożliwia każdemu agentowi AI lub aplikacji tworzenie wpisów, komunikację z nauczycielem i odczytywanie dziennika — pod warunkiem posiadania tokenu.
               </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Base URL</span>
-                <code suppressHydrationWarning style={{ fontFamily: 'monospace', fontSize: 12, color: '#111', background: '#f4f4f5', padding: '2px 8px', borderRadius: 4 }}>{baseUrl}/api/v1</code>
+                <code suppressHydrationWarning style={{ fontFamily: 'monospace', fontSize: 12, color: '#111', background: '#f4f4f5', padding: '2px 8px', borderRadius: 4, wordBreak: 'break-all' }}>{baseUrl}/api/v1</code>
                 <CopyButton text={`${baseUrl}/api/v1`} />
               </div>
             </div>
@@ -491,9 +503,9 @@ export default function DocsPage() {
               <p style={{ fontSize: 14, color: '#555', lineHeight: 1.7, marginBottom: 14 }}>
                 Serwer MCP (Model Context Protocol) umożliwia agentom AI — takim jak Claude Desktop — bezpośredni dostęp do Magic Diary przez JSON-RPC 2.0. Trzy narzędzia: dodaj wpis, odpowiedz nauczycielowi, odczytaj wpis.
               </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Endpoint</span>
-                <code suppressHydrationWarning style={{ fontFamily: 'monospace', fontSize: 12, color: '#111', background: '#f4f4f5', padding: '2px 8px', borderRadius: 4 }}>{baseUrl}/api/mcp</code>
+                <code suppressHydrationWarning style={{ fontFamily: 'monospace', fontSize: 12, color: '#111', background: '#f4f4f5', padding: '2px 8px', borderRadius: 4, wordBreak: 'break-all' }}>{baseUrl}/api/mcp</code>
                 <CopyButton text={`${baseUrl}/api/mcp`} />
               </div>
             </div>
