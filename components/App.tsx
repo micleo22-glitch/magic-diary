@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   X, User, GraduationCap, ShoppingBag, Settings, LogOut,
@@ -190,25 +190,24 @@ export function App() {
   }, [])
 
   function saveMobileUsername() {
-    const trimmed = usernameInput.trim()
-    if (!trimmed) return
-    persistUsername(trimmed)
-    toast('Nazwa zapisana', 'success')
+    if (!usernameInput.trim()) return
+    persistUsername(usernameInput)
   }
 
-  function persistUsername(name: string) {
+  async function persistUsername(name: string) {
     const trimmed = name.trim()
     if (!trimmed) return
     setUsername(trimmed)
     setUsernameInput(trimmed)
-    saveProfile({ username: trimmed })
+    const ok = await saveProfile({ username: trimmed })
+    toast(ok ? 'Nazwa zapisana' : 'Nie udało się zapisać nazwy', ok ? 'success' : 'error')
   }
 
-  function selectMobileHouse(id: string) {
+  async function selectMobileHouse(id: string) {
     setHouse(id)
-    saveProfile({ house: id })
+    const ok = await saveProfile({ house: id })
     const h = HOUSES.find(h => h.id === id)
-    toast(`Dom ${h?.name} wybrany`, 'success')
+    toast(ok ? `Dom ${h?.name} wybrany` : 'Nie udało się zapisać domu', ok ? 'success' : 'error')
   }
 
   const reload = useCallback(async () => {
@@ -217,27 +216,40 @@ export function App() {
     return data
   }, [])
 
-  // Auth listener — hydrate profile + entries once the account session is known.
+  // Tracks which user we've already hydrated. supabase-js re-emits SIGNED_IN on tab
+  // focus / token refresh — without this guard each re-emit would re-run applyProfile
+  // and clobber in-session edits (e.g. a just-changed house) with stale session data.
+  const hydratedUserId = useRef<string | null>(null)
+
+  const hydrate = useCallback((s: Session) => {
+    if (hydratedUserId.current === s.user.id) return
+    hydratedUserId.current = s.user.id
+    applyProfile(s)
+    reload()
+  }, [applyProfile, reload])
+
+  // Auth listener — hydrate profile + entries once per signed-in user.
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       const s = data.session
       setSession(s)
-      if (s) { applyProfile(s); reload() }
+      if (s) hydrate(s)
       else setProfileChecked(true)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       if (!s) {
+        hydratedUserId.current = null
         setView('splash'); setEntries([])
         setUsername(''); setUsernameInput(''); setHouse(''); setShowOnboarding(false)
         clearCachedProfile()
         setProfileChecked(true)
         return
       }
-      if (event === 'SIGNED_IN') { applyProfile(s); reload() }
+      if (event === 'SIGNED_IN') hydrate(s)
     })
     return () => subscription.unsubscribe()
-  }, [applyProfile, reload])
+  }, [hydrate])
 
   const openToday = useCallback(async () => {
     const data = await reload()

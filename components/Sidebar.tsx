@@ -154,7 +154,6 @@ export function Sidebar({
     const trimmed = localUsername.trim()
     if (!trimmed) return
     onUsernameChange(trimmed)
-    toast('Nazwa zapisana', 'success')
   }
 
   // ─── Profile overlay ─────────────────────────────────────────

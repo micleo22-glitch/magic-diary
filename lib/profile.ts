@@ -37,17 +37,22 @@ export function getCachedProfile(): Partial<Profile> {
   }
 }
 
-/** Persist a partial profile change to user_metadata (merged) + refresh the cache. */
-export async function saveProfile(patch: Partial<Profile>): Promise<void> {
+/**
+ * Persist a partial profile change to user_metadata (merged) + refresh the cache.
+ * The cache is written first so the value is never lost even if the network call fails.
+ * Returns whether the account write succeeded.
+ */
+export async function saveProfile(patch: Partial<Profile>): Promise<boolean> {
+  cacheProfile(patch)
+
   const data: Record<string, unknown> = {}
   if (patch.username !== undefined)       data.username = patch.username
   if (patch.house !== undefined)          data.house = patch.house
   if (patch.onboardingDone !== undefined) data.onboarding_done = patch.onboardingDone
 
   const { error } = await supabase.auth.updateUser({ data })
-  if (error) console.error(error)
-
-  cacheProfile(patch)
+  if (error) { console.error('saveProfile failed:', error); return false }
+  return true
 }
 
 /** Write profile values to the localStorage cache (used for instant first paint). */
