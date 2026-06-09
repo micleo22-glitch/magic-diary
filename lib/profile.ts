@@ -9,13 +9,15 @@ export interface Profile {
   username: string
   house: string
   onboardingDone: boolean
+  defaultAgent: string
 }
 
-const LS_NAME  = 'magic_diary_username'
-const LS_HOUSE = 'magic_diary_house'
-const LS_DONE  = 'magic_diary_onboarding_done'
+const LS_NAME   = 'magic_diary_username'
+const LS_HOUSE  = 'magic_diary_house'
+const LS_DONE   = 'magic_diary_onboarding_done'
+const LS_AGENT  = 'magic_diary_default_agent'
 
-const EMPTY: Profile = { username: '', house: '', onboardingDone: false }
+const EMPTY: Profile = { username: '', house: '', onboardingDone: false, defaultAgent: '' }
 
 /** Read the authoritative profile straight from the session's user metadata (pure). */
 export function profileFromSession(session: Session | null): Profile {
@@ -24,6 +26,7 @@ export function profileFromSession(session: Session | null): Profile {
     username: typeof m.username === 'string' ? m.username : '',
     house: typeof m.house === 'string' ? m.house : '',
     onboardingDone: m.onboarding_done === true,
+    defaultAgent: typeof m.default_agent === 'string' ? m.default_agent : '',
   }
 }
 
@@ -34,6 +37,7 @@ export function getCachedProfile(): Partial<Profile> {
     username: localStorage.getItem(LS_NAME) ?? '',
     house: localStorage.getItem(LS_HOUSE) ?? '',
     onboardingDone: localStorage.getItem(LS_DONE) === '1',
+    defaultAgent: localStorage.getItem(LS_AGENT) ?? '',
   }
 }
 
@@ -49,6 +53,7 @@ export async function saveProfile(patch: Partial<Profile>): Promise<boolean> {
   if (patch.username !== undefined)       data.username = patch.username
   if (patch.house !== undefined)          data.house = patch.house
   if (patch.onboardingDone !== undefined) data.onboarding_done = patch.onboardingDone
+  if (patch.defaultAgent !== undefined)   data.default_agent = patch.defaultAgent
 
   const { error } = await supabase.auth.updateUser({ data })
   if (error) { console.error('saveProfile failed:', error); return false }
@@ -61,6 +66,7 @@ export function cacheProfile(p: Partial<Profile>) {
   if (p.username !== undefined)       localStorage.setItem(LS_NAME, p.username)
   if (p.house !== undefined)          localStorage.setItem(LS_HOUSE, p.house)
   if (p.onboardingDone !== undefined) localStorage.setItem(LS_DONE, p.onboardingDone ? '1' : '0')
+  if (p.defaultAgent !== undefined)   localStorage.setItem(LS_AGENT, p.defaultAgent)
 }
 
 /**
@@ -72,6 +78,7 @@ export function clearCachedProfile() {
   localStorage.removeItem(LS_NAME)
   localStorage.removeItem(LS_HOUSE)
   localStorage.removeItem(LS_DONE)
+  localStorage.removeItem(LS_AGENT)
 }
 
 export { EMPTY as EMPTY_PROFILE }
