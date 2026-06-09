@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createUserClient } from '@/lib/supabase-admin'
+import { isValidDate } from '@/lib/validate'
 import { xai } from '@ai-sdk/xai'
 import { generateText, tool, stepCountIs } from 'ai'
 import { z } from 'zod'
+import { hybridSearch } from '@/lib/hybrid-search'
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get('Authorization')
@@ -35,7 +37,7 @@ Otwierasz odpowiedź ironicznym echem lub chłodną obserwacją. Nigdy: "Rozumie
 Kończysz zawsze celnym pytaniem chirurgicznym.
 2–4 zdania maksimum. Wyłącznie po polsku.
 
-Masz dostęp do narzędzia get_diary_entries — używaj gdy uczeń nawiązuje do przeszłości.`
+Masz dostęp do narzędzia search_diary — ZAWSZE wywołaj je jako PIERWSZY KROK gdy uczeń cokolwiek wspomina. Narzędzie zwraca semantycznie pasujące wpisy, dopasowania słów kluczowych oraz ostatnie 7 dni dziennika.`
 
 export async function POST(req: NextRequest) {
   const token = getToken(req)
@@ -60,8 +62,7 @@ export async function POST(req: NextRequest) {
 
   // If date provided, load that entry as context
   if (date) {
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-    if (!dateRegex.test(date)) {
+    if (!isValidDate(date)) {
       return NextResponse.json({ error: 'date musi być w formacie YYYY-MM-DD' }, { status: 400 })
     }
 
@@ -92,36 +93,17 @@ export async function POST(req: NextRequest) {
     system: systemContent,
     messages: [{ role: 'user', content: message }],
     tools: {
-      get_diary_entries: tool({
-        description: 'Pobierz starsze wpisy z dziennika ucznia.',
+      search_diary: tool({
+        description: 'Wyszukaj wpisy semantycznie, po słowach kluczowych i po dacie. Wynik zawiera ostatnie 7 dni. WYWOŁAJ JAKO PIERWSZY KROK gdy uczeń wspomina cokolwiek.',
         inputSchema: z.object({
-          date_from: z.string().optional(),
-          date_to: z.string().optional(),
-          limit: z.number().int().optional(),
+          query: z.string().describe('Zapytanie — temat, osoba, emocja, wydarzenie'),
+          date_from: z.string().optional().describe('Data od YYYY-MM-DD'),
+          date_to: z.string().optional().describe('Data do YYYY-MM-DD'),
         }),
-        execute: async ({ date_from, date_to, limit }) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let query: any = db
-            .from('entries')
-            .select('date, title, mood, content')
-            .order('date', { ascending: false })
-
-          if (date_from) query = query.gte('date', date_from)
-          if (date_to) query = query.lte('date', date_to)
-
-          const safeLimit = Math.min(typeof limit === 'number' ? limit : 5, 10)
-          query = query.limit(safeLimit)
-
-          const { data, error } = await query
-          if (error || !data?.length) return 'Brak wpisów.'
-
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return JSON.stringify(data.map((r: any) => ({
-            data: r.date,
-            tytuł: r.title || '(bez tytułu)',
-            nastrój: r.mood ? MOOD_LABEL[r.mood as number] : null,
-            treść: stripHtml(r.content ?? '').slice(0, 400),
-          })))
+        execute: async ({ query }) => {
+          const results = await hybridSearch(db, query)
+          if (!results.length) return 'Brak pasujących wpisów.'
+          return JSON.stringify(results)
         },
       }),
     },

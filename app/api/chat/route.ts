@@ -3,6 +3,7 @@ import { createUserClient } from '@/lib/supabase-admin'
 import { xai } from '@ai-sdk/xai'
 import { streamText, tool, stepCountIs } from 'ai'
 import { z } from 'zod'
+import { hybridSearch } from '@/lib/hybrid-search'
 
 // ── HTML stripping ────────────────────────────────────────────────────────────
 function stripHtml(html: string): string {
@@ -132,7 +133,7 @@ ZASADY ŻELAZNE:
 - Nigdy nie wychodź z postaci
 - Mówisz wyłącznie po polsku, bez anglicyzmów, potocznych wyrażeń i absolutnie bez emotikon
 
-Masz dostęp do narzędzia get_diary_entries — używaj go gdy uczeń nawiązuje do przeszłości lub chcesz dostrzec wzorzec, który on sam przeoczył.
+Masz dostęp do narzędzia search_diary — ZAWSZE wywołaj je jako PIERWSZY KROK gdy uczeń cokolwiek wspomina: wydarzenie, osobę, emocję, datę lub nawiązuje do przeszłości. Narzędzie automatycznie zwraca semantycznie pasujące wpisy, dopasowania słów kluczowych oraz ostatnie 7 dni dziennika. Dopiero na ich podstawie formułuj odpowiedź.
 ${SNAPE_FEW_SHOT}`,
   },
 }
@@ -169,6 +170,27 @@ export async function POST(req: NextRequest) {
       (contentText ? `\nTreść:\n${contentText}` : '')
   }
 
+  // Always inject last 7 days — lightweight context (~1000 tokens)
+  if (accessToken) {
+    const db = createUserClient(accessToken)
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const { data: recentEntries } = await db
+      .from('entries')
+      .select('date, title, mood, content')
+      .gte('date', weekAgo)
+      .order('date', { ascending: false })
+      .limit(14)
+
+    if (recentEntries?.length) {
+      const formatted = recentEntries.map((r: Record<string, unknown>) => {
+        const mood = r.mood ? MOOD_LABEL[r.mood as number] : null
+        const text = stripHtml((r.content as string) ?? '').slice(0, 300)
+        return `[${r.date}] "${r.title || '(bez tytułu)'}"${mood ? ` (${mood})` : ''}${text ? `\n${text}` : ''}`
+      }).join('\n\n')
+      systemContent += `\n\n---\nOSTATNIE 7 DNI DZIENNIKA (zawsze dostępne):\n${formatted}`
+    }
+  }
+
   const result = streamText({
     model: xai('grok-4.3'),
     system: systemContent,
@@ -178,48 +200,19 @@ export async function POST(req: NextRequest) {
     })),
     tools: accessToken
       ? {
-          get_diary_entries: tool({
+          search_diary: tool({
             description:
-              'Pobierz starsze wpisy z dziennika ucznia. Używaj gdy uczeń nawiązuje do przeszłości, porównuje się z wcześniejszym sobą lub chcesz zobaczyć wzorce w jego wpisach.',
+              'Wyszukaj wpisy w dzienniku — semantycznie, po słowach kluczowych i po dacie. Wynik zawsze zawiera ostatnie 7 dni. WYWOŁAJ TO NARZĘDZIE jako pierwszy krok gdy uczeń wspomina jakiekolwiek wydarzenie, osobę, emocję lub nawiązuje do przeszłości.',
             inputSchema: z.object({
-              date_from: z
-                .string()
-                .optional()
-                .describe('Data początkowa w formacie YYYY-MM-DD (opcjonalna)'),
-              date_to: z
-                .string()
-                .optional()
-                .describe('Data końcowa w formacie YYYY-MM-DD (opcjonalna)'),
-              limit: z
-                .number()
-                .int()
-                .optional()
-                .describe('Maksymalna liczba wpisów do pobrania (domyślnie 5, maksymalnie 10)'),
+              query: z.string().describe('Zapytanie — co szukamy w dzienniku (temat, osoba, emocja, wydarzenie)'),
+              date_from: z.string().optional().describe('Opcjonalna data od YYYY-MM-DD'),
+              date_to: z.string().optional().describe('Opcjonalna data do YYYY-MM-DD'),
             }),
-            execute: async ({ date_from, date_to, limit }) => {
+            execute: async ({ query }) => {
               const db = createUserClient(accessToken)
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              let query: any = db
-                .from('entries')
-                .select('date, title, mood, content')
-                .order('date', { ascending: false })
-
-              if (date_from) query = query.gte('date', date_from)
-              if (date_to) query = query.lte('date', date_to)
-
-              const safeLimit = Math.min(typeof limit === 'number' ? limit : 5, 10)
-              query = query.limit(safeLimit)
-
-              const { data, error } = await query
-              if (error || !data?.length) return 'Brak wpisów spełniających kryteria.'
-
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              return JSON.stringify(data.map((r: any) => ({
-                data: r.date,
-                tytuł: r.title || '(bez tytułu)',
-                nastrój: r.mood ? MOOD_LABEL[r.mood as number] : null,
-                treść: stripHtml(r.content ?? '').slice(0, 400),
-              })))
+              const results = await hybridSearch(db, query)
+              if (!results.length) return 'Brak pasujących wpisów w dzienniku.'
+              return JSON.stringify(results)
             },
           }),
         }

@@ -3,13 +3,14 @@ import { createUserClient } from '@/lib/supabase-admin'
 import { xai } from '@ai-sdk/xai'
 import { generateText, tool, stepCountIs } from 'ai'
 import { z } from 'zod'
+import { hybridSearch } from '@/lib/hybrid-search'
 
 // ── MCP server for Magic Diary ────────────────────────────────────────────────
 // Implements JSON-RPC 2.0 over HTTP (Streamable HTTP transport)
 // Compatible with MCP clients that support HTTP POST transport
 
 function genId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+  return crypto.randomUUID()
 }
 
 function getToken(req: NextRequest): string | null {
@@ -54,7 +55,7 @@ const MCP_TOOLS = [
   },
   {
     name: 'ask_snape',
-    description: 'Wysyła wiadomość do nauczyciela AI (Severus Snape) — odpowiedź ucznia na pytanie nauczyciela lub nową refleksję. Nauczyciel analizuje dziennik i odpowiada w charakterystycznym stylu.',
+    description: 'Wysyła wiadomość do nauczyciela AI (Severus Snape). Nauczyciel używa hybrydowego wyszukiwania (semantycznego + słów kluczowych + ostatnie 7 dni) żeby pobrać pasujące wpisy i odpowiedzieć w ich kontekście.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -162,7 +163,9 @@ async function handleToolCall(name: string, args: Record<string, any>, token: st
 
     let systemContent = `Jesteś Severusem Snape'em — mistrzem eliksirów z Hogwartu, osobistym doradcą uczniów prowadzących magiczny dziennik. Traktujesz swój dostęp do ich myśli jako przywilej wymagający precyzji, nie pobłażliwości.
 
-GŁOS: teatralne pauzy, chłodna ironia, metafory alchemiczne. Kończ zawsze chirurgicznym pytaniem. 2–4 zdania. Wyłącznie po polsku.`
+GŁOS: teatralne pauzy, chłodna ironia, metafory alchemiczne. Kończ zawsze chirurgicznym pytaniem. 2–4 zdania. Wyłącznie po polsku.
+
+Masz dostęp do narzędzia search_diary — ZAWSZE wywołaj je jako PIERWSZY KROK gdy uczeń cokolwiek wspomina. Narzędzie zwraca semantycznie pasujące wpisy, dopasowania słów kluczowych oraz ostatnie 7 dni dziennika.`
 
     if (date) {
       const { data: entry } = await db
@@ -187,30 +190,17 @@ GŁOS: teatralne pauzy, chłodna ironia, metafory alchemiczne. Kończ zawsze chi
       system: systemContent,
       messages: [{ role: 'user', content: userMessage as string }],
       tools: {
-        get_diary_entries: tool({
-          description: 'Pobierz starsze wpisy z dziennika.',
+        search_diary: tool({
+          description: 'Wyszukaj wpisy semantycznie, po słowach kluczowych i po dacie. Wynik zawiera ostatnie 7 dni. WYWOŁAJ JAKO PIERWSZY KROK gdy uczeń wspomina cokolwiek.',
           inputSchema: z.object({
-            date_from: z.string().optional(),
-            date_to: z.string().optional(),
-            limit: z.number().int().optional(),
+            query: z.string().describe('Zapytanie — temat, osoba, emocja, wydarzenie'),
+            date_from: z.string().optional().describe('Data od YYYY-MM-DD'),
+            date_to: z.string().optional().describe('Data do YYYY-MM-DD'),
           }),
-          execute: async ({ date_from, date_to, limit }) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let query: any = db
-              .from('entries')
-              .select('date, title, mood, content')
-              .order('date', { ascending: false })
-            if (date_from) query = query.gte('date', date_from)
-            if (date_to) query = query.lte('date', date_to)
-            query = query.limit(Math.min(typeof limit === 'number' ? limit : 5, 10))
-            const { data, error } = await query
-            if (error || !data?.length) return 'Brak wpisów.'
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return JSON.stringify(data.map((r: any) => ({
-              data: r.date, tytuł: r.title || '(bez tytułu)',
-              nastrój: r.mood ? MOOD_LABEL[r.mood as number] : null,
-              treść: stripHtml(r.content ?? '').slice(0, 400),
-            })))
+          execute: async ({ query }) => {
+            const results = await hybridSearch(db, query)
+            if (!results.length) return 'Brak pasujących wpisów.'
+            return JSON.stringify(results)
           },
         }),
       },
