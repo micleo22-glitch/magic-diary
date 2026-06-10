@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Feather, Search, User, GraduationCap, ShoppingBag, Settings,
-  LogOut, ChevronRight, ChevronLeft, X, Download, Trash2, Mail, Heart, BookOpen,
+  LogOut, ChevronRight, ChevronLeft, X, Download, Trash2, Mail, Heart, BookOpen, Camera,
 } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { HouseTheme, DEFAULT_THEME, streakLabel } from '@/lib/houseTheme'
@@ -104,6 +104,7 @@ export function Sidebar({
   const [monthOffset, setMonthOffset]   = useState(0)
   const [moodFilter, setMoodFilter]     = useState<number | null>(null)
   const [favOnly, setFavOnly]           = useState(false)
+  const [photosOnly, setPhotosOnly]     = useState(false)
   const [sort, setSort]                 = useState<Sort>(() => {
     if (typeof window !== 'undefined') return (localStorage.getItem(SORT_KEY) as Sort) || 'newest'
     return 'newest'
@@ -128,7 +129,12 @@ export function Sidebar({
 
   const entriesInMonth = entries.filter(e => e.date.startsWith(activeKey))
 
-  const baseEntries = favOnly ? entries.filter(e => e.isFavorite) : entriesInMonth
+  const baseEntries = (favOnly || photosOnly)
+    ? entries.filter(e =>
+        (!favOnly || e.isFavorite) &&
+        (!photosOnly || (e.photos && e.photos.length > 0))
+      )
+    : entriesInMonth
 
   const moodsInMonth = useMemo(() => {
     const set = new Set<number>()
@@ -570,7 +576,7 @@ export function Sidebar({
       </div>
 
       {/* ── Month navigator ── */}
-      <div className={`flex items-center justify-between px-3 pb-1 transition-opacity duration-200 ${favOnly ? 'opacity-30 pointer-events-none' : ''}`}>
+      <div className={`flex items-center justify-between px-3 pb-1 transition-opacity duration-200 ${favOnly || photosOnly ? 'opacity-30 pointer-events-none' : ''}`}>
         <button onClick={() => setMonthOffset(o => o - 1)}
           className="p-1 rounded-lg transition-colors"
           style={{ color: '#C9A87A' }}
@@ -641,21 +647,8 @@ export function Sidebar({
         </div>
       )}
 
-      {/* ── Ulubione + Sort pills ── */}
-      <div className="px-3 pb-2 flex flex-wrap gap-1">
-        <button
-          onClick={() => setFavOnly(v => !v)}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-full transition-all"
-          style={{
-            fontFamily: "'Cinzel', serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
-            background: favOnly ? theme.primary : theme.primaryDim,
-            color: favOnly ? '#1A0A06' : theme.primary,
-            border: `1px solid ${favOnly ? theme.primary : theme.borderColor}`,
-          }}
-        >
-          <Heart size={9} fill={favOnly ? 'currentColor' : 'none'} />
-          Ulubione
-        </button>
+      {/* ── Sort pills — row 1 ── */}
+      <div className="px-3 pb-1.5 flex gap-1 justify-center">
         {(Object.keys(sortLabels) as Sort[]).map(s => (
           <button
             key={s}
@@ -673,12 +666,42 @@ export function Sidebar({
         ))}
       </div>
 
+      {/* ── Filter pills — row 2 ── */}
+      <div className="px-3 pb-2 flex gap-1 justify-center">
+        <button
+          onClick={() => setFavOnly(v => !v)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-full transition-all"
+          style={{
+            fontFamily: "'Cinzel', serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            background: favOnly ? theme.primary : theme.primaryDim,
+            color: favOnly ? '#1A0A06' : theme.primary,
+            border: `1px solid ${favOnly ? theme.primary : theme.borderColor}`,
+          }}
+        >
+          <Heart size={9} fill={favOnly ? 'currentColor' : 'none'} />
+          Ulubione
+        </button>
+        <button
+          onClick={() => setPhotosOnly(v => !v)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-full transition-all"
+          style={{
+            fontFamily: "'Cinzel', serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            background: photosOnly ? theme.primary : theme.primaryDim,
+            color: photosOnly ? '#1A0A06' : theme.primary,
+            border: `1px solid ${photosOnly ? theme.primary : theme.borderColor}`,
+          }}
+        >
+          <Camera size={9} />
+          Ze zdjęciem
+        </button>
+      </div>
+
       {/* ── Entries scroll ── */}
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {filtered.length === 0 ? (
           <p style={{ fontFamily: "'Lora', serif", color: '#C9A87A', fontSize: 12, fontWeight: 500 }}
             className="italic text-center py-8 px-3">
-            {favOnly ? 'Brak ulubionych wpisów.' : q || moodFilter ? 'Brak wyników.' : 'Brak wpisów w tym miesiącu.'}
+            {favOnly && photosOnly ? 'Brak ulubionych ze zdjęciem.' : favOnly ? 'Brak ulubionych wpisów.' : photosOnly ? 'Brak wpisów ze zdjęciem.' : q || moodFilter ? 'Brak wyników.' : 'Brak wpisów w tym miesiącu.'}
           </p>
         ) : (
           <div className="flex flex-col gap-0.5 mt-1">

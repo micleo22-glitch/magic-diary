@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Search, BookOpen, Plus, ChevronLeft, ChevronRight, Heart } from 'lucide-react'
+import { Search, BookOpen, Plus, ChevronLeft, ChevronRight, Heart, Camera } from 'lucide-react'
 import { Entry, MOOD_EMOJI } from '@/types/entry'
 import { EntryCard } from './EntryCard'
 
@@ -30,6 +30,7 @@ export function EntriesList({
   useEffect(() => { searchRef.current?.blur() }, [])
   const [moodFilter, setMoodFilter] = useState<number | null>(null)
   const [favOnly, setFavOnly] = useState(false)
+  const [photosOnly, setPhotosOnly] = useState(false)
   const [sort, setSort] = useState<Sort>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem(SORT_KEY) as Sort) || 'newest'
@@ -59,7 +60,12 @@ export function EntriesList({
 
   const entriesInMonth = entries.filter(e => e.date.startsWith(activeKey))
 
-  const baseEntries = favOnly ? entries.filter(e => e.isFavorite) : entriesInMonth
+  const baseEntries = (favOnly || photosOnly)
+    ? entries.filter(e =>
+        (!favOnly || e.isFavorite) &&
+        (!photosOnly || (e.photos && e.photos.length > 0))
+      )
+    : entriesInMonth
 
   const filtered = baseEntries
     .filter(e => moodFilter === null || e.mood === moodFilter)
@@ -102,7 +108,7 @@ export function EntriesList({
         </div>
 
         {/* Month navigator */}
-        <div className={`flex items-center justify-between mb-1 px-1 transition-opacity duration-200 ${favOnly ? 'opacity-30 pointer-events-none' : ''}`}>
+        <div className={`flex items-center justify-between mb-1 px-1 transition-opacity duration-200 ${favOnly || photosOnly ? 'opacity-30 pointer-events-none' : ''}`}>
           <button
             onClick={() => setMonthOffset(o => o - 1)}
             className="p-1.5 rounded-lg hover:bg-[rgba(201,153,63,0.12)] transition-colors"
@@ -190,19 +196,8 @@ export function EntriesList({
           />
         </div>
 
-        {/* Sort pills + favorites toggle */}
-        <div className="flex gap-1.5 flex-wrap justify-center">
-          <button
-            onClick={() => setFavOnly(v => !v)}
-            style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700 }}
-            className={[
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-full tracking-wide transition-all',
-              favOnly ? 'bg-[#C9993F] text-white' : 'bg-[#E8DCC0] text-[#5C3D28] hover:bg-[#C9993F]/20',
-            ].join(' ')}
-          >
-            <Heart size={11} fill={favOnly ? 'currentColor' : 'none'} />
-            Ulubione
-          </button>
+        {/* Sort pills — row 1 */}
+        <div className="flex gap-1.5 justify-center mb-1.5">
           {(Object.keys(sortLabels) as Sort[]).map(s => (
             <button
               key={s}
@@ -217,6 +212,32 @@ export function EntriesList({
             </button>
           ))}
         </div>
+
+        {/* Filter pills — row 2 */}
+        <div className="flex gap-1.5 justify-center">
+          <button
+            onClick={() => setFavOnly(v => !v)}
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700 }}
+            className={[
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full tracking-wide transition-all',
+              favOnly ? 'bg-[#C9993F] text-white' : 'bg-[#E8DCC0] text-[#5C3D28] hover:bg-[#C9993F]/20',
+            ].join(' ')}
+          >
+            <Heart size={11} fill={favOnly ? 'currentColor' : 'none'} />
+            Ulubione
+          </button>
+          <button
+            onClick={() => setPhotosOnly(v => !v)}
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700 }}
+            className={[
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full tracking-wide transition-all',
+              photosOnly ? 'bg-[#C9993F] text-white' : 'bg-[#E8DCC0] text-[#5C3D28] hover:bg-[#C9993F]/20',
+            ].join(' ')}
+          >
+            <Camera size={11} />
+            Ze zdjęciem
+          </button>
+        </div>
       </div>
 
       {/* List */}
@@ -226,15 +247,19 @@ export function EntriesList({
             <BookOpen size={44} className="text-[#C9993F]/30" />
             <p style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600 }}
               className="text-[#7A5C42] text-center italic text-sm leading-relaxed">
-              {favOnly
-                ? 'Nie masz jeszcze\nulubionych wpisów.'
-                : q || moodFilter
-                  ? 'Nie znaleziono wspomnień\npasujących do filtrów.'
-                  : entriesInMonth.length === 0
-                    ? 'W tym miesiącu nie ma jeszcze\nżadnych wpisów.'
-                    : 'Brak wyników.'}
+              {favOnly && photosOnly
+                ? 'Brak ulubionych wpisów ze zdjęciem.'
+                : favOnly
+                  ? 'Nie masz jeszcze\nulubionych wpisów.'
+                  : photosOnly
+                    ? 'Brak wpisów ze zdjęciem.'
+                    : q || moodFilter
+                      ? 'Nie znaleziono wspomnień\npasujących do filtrów.'
+                      : entriesInMonth.length === 0
+                        ? 'W tym miesiącu nie ma jeszcze\nżadnych wpisów.'
+                        : 'Brak wyników.'}
             </p>
-            {!q && !moodFilter && !favOnly && entriesInMonth.length === 0 && (
+            {!q && !moodFilter && !favOnly && !photosOnly && entriesInMonth.length === 0 && (
               <button
                 onClick={onNewEntry}
                 style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}

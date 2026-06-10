@@ -90,7 +90,7 @@ export function AuthScreen() {
           Magic Diary
         </h1>
         <p style={{ fontFamily: "'Lora', serif", color: 'rgba(201,153,63,0.85)', fontSize: 13, fontWeight: 500 }}>
-          Twój prywatny dziennik
+          Twoje czarodziejskie wspomnienia
         </p>
       </motion.div>
 
