@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Pencil, Trash2, AlertTriangle, Heart, X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
+import { motion, AnimatePresence, useIsPresent } from 'framer-motion'
+import { ArrowLeft, Pencil, Trash2, AlertTriangle, Heart, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
 import { getSignedUrls } from '@/lib/entry-photos'
@@ -24,6 +24,7 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
   // Absolute pinch reference: distance + scale captured at gesture start
   const pinchStart = useRef<{ dist: number; scale: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const isPresent = useIsPresent()
   const zoomed = scale > 1
 
   const clamp = (s: number) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s))
@@ -97,7 +98,7 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.82)' }}
+      style={{ background: 'rgba(0,0,0,0.82)', pointerEvents: isPresent ? 'auto' : 'none' }}
       onClick={onClose}
     >
       {/* Close button */}
@@ -114,14 +115,12 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
       {/* Image container */}
       <div
         ref={containerRef}
-        className="overflow-hidden flex items-center justify-center"
+        className="flex items-center justify-center"
         onClick={e => e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
           touchAction: 'none',
-          maxHeight: '90vh',
-          maxWidth: '92vw',
           cursor: zoomed ? (dragging ? 'grabbing' : 'grab') : 'zoom-in',
         }}
       >
@@ -131,7 +130,7 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
           initial={{ opacity: 0 }}
           animate={{ scale, opacity: 1 }}
           transition={pinching ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 28, opacity: { duration: 0.2 } }}
-          drag={zoomed}
+          drag={zoomed && isPresent}
           dragMomentum={false}
           dragElastic={0.06}
           onDragStart={() => { draggedRef.current = true; setDragging(true) }}
@@ -157,21 +156,21 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
         onClick={e => e.stopPropagation()}
       >
         {[
-          { icon: <ZoomOut size={18} />, action: zoomOut, label: 'Pomniejsz', disabled: scale <= MIN_SCALE },
-          { icon: <Maximize2 size={16} />, action: resetZoom, label: 'Resetuj', disabled: scale === 1 },
-          { icon: <ZoomIn size={18} />, action: zoomIn, label: 'Powiększ', disabled: scale >= MAX_SCALE },
+          { content: <ZoomOut size={18} />, action: zoomOut, label: 'Pomniejsz', disabled: scale <= MIN_SCALE, wide: false },
+          { content: 'Reset', action: resetZoom, label: 'Resetuj', disabled: scale === 1, wide: true },
+          { content: <ZoomIn size={18} />, action: zoomIn, label: 'Powiększ', disabled: scale >= MAX_SCALE, wide: false },
         ].map((b, i) => (
           <button
             key={i}
             onClick={b.action}
             disabled={b.disabled}
             aria-label={b.label}
-            className="w-9 h-9 flex items-center justify-center rounded-full transition-all"
+            className={`h-9 flex items-center justify-center rounded-full transition-all ${b.wide ? 'px-4 text-sm font-medium' : 'w-9'}`}
             style={{ color: 'rgba(255,255,255,0.85)', opacity: b.disabled ? 0.35 : 1 }}
             onMouseEnter={e => { if (!b.disabled) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.2)' }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
           >
-            {b.icon}
+            {b.content}
           </button>
         ))}
       </div>

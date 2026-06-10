@@ -14,6 +14,8 @@ export interface Character {
   gradientFrom: string
   gradientTo: string
   Icon: React.ElementType
+  /** Real portrait photo (already framed). When set, card chrome is suppressed. */
+  photo?: string
 }
 
 export const CHARACTERS: Character[] = [
@@ -27,6 +29,7 @@ export const CHARACTERS: Character[] = [
     gradientFrom: '#080C10',
     gradientTo: '#0A1A12',
     Icon: FlaskConical,
+    photo: '/postacie/snape.webp',
   },
   {
     id: 'hagrid',
@@ -204,6 +207,31 @@ function CharacterCard({
 }
 
 function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) {
+  // Photo characters carry their own frame — show just the image, no card chrome.
+  if (char.photo && !char.locked) {
+    return (
+      <div
+        style={{
+          position: 'relative',
+          aspectRatio: '3/4',
+          width: '100%',
+        }}
+      >
+        <img
+          src={char.photo}
+          alt={char.name}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div style={{ position: 'relative', aspectRatio: '3/4', width: '100%' }}>
       {/* Corner ornaments (unlocked only) */}
@@ -287,52 +315,6 @@ function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) 
 }
 
 function CharacterArt({ char }: { char: Character }) {
-  if (char.id === 'snape') {
-    return (
-      <svg
-        viewBox="0 0 80 120"
-        style={{
-          width: '74%',
-          height: 'auto',
-          marginTop: '6%',
-          filter: `drop-shadow(0 0 10px ${char.glowColor})`,
-        }}
-      >
-        {/* Robe */}
-        <path
-          d="M40 0 C40 0 38 8 36 12 C32 16 28 18 26 24 C22 32 20 48 18 56 C16 64 14 76 12 88 C10 100 10 120 10 120 L70 120 C70 120 70 100 68 88 C66 76 64 64 62 56 C60 48 58 32 54 24 C52 18 48 16 44 12 C42 8 40 0 40 0 Z"
-          fill={char.gradientFrom}
-          stroke={char.accentColor}
-          strokeWidth="0.6"
-          strokeOpacity="0.45"
-        />
-        {/* Collar */}
-        <path
-          d="M28 20 C30 16 34 13 40 13 C46 13 50 16 52 20 C56 24 58 30 58 30 L22 30 C22 30 24 24 28 20 Z"
-          fill="#0A0A0F"
-          stroke={char.accentColor}
-          strokeWidth="0.5"
-          strokeOpacity="0.5"
-        />
-        {/* Head */}
-        <ellipse cx="40" cy="8" rx="7" ry="8.5" fill="#C4A882" />
-        {/* Hair left */}
-        <path d="M33 4 C31 6 31 10 32 14 L33 16 C32 12 32 7 33 4 Z" fill="#181818" />
-        {/* Hair right */}
-        <path d="M47 4 C49 6 49 10 48 14 L47 16 C48 12 48 7 47 4 Z" fill="#181818" />
-        {/* Hair top */}
-        <path d="M33 4 C33 0 36 -1 40 -1 C44 -1 47 0 47 4 C46 2 44 1 40 1 C36 1 34 2 33 4 Z" fill="#181818" />
-        {/* Eyes */}
-        <ellipse cx="37" cy="9" rx="1.2" ry="1" fill="#1A1A2E" />
-        <ellipse cx="43" cy="9" rx="1.2" ry="1" fill="#1A1A2E" />
-        <circle cx="37.5" cy="8.8" r="0.35" fill={char.accentColor} opacity="0.8" />
-        <circle cx="43.5" cy="8.8" r="0.35" fill={char.accentColor} opacity="0.8" />
-        {/* Subtle mouth line */}
-        <path d="M38.5 12 Q40 12.8 41.5 12" stroke="#8A7060" strokeWidth="0.5" fill="none" />
-      </svg>
-    )
-  }
-
   // Other unlocked characters: large themed icon
   const IconComp = char.Icon
   return (
