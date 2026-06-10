@@ -197,10 +197,12 @@ export async function POST(req: NextRequest) {
   // Always inject last 7 days — lightweight context (~1000 tokens)
   {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const today = new Date().toISOString().split('T')[0]
     const { data: recentEntries } = await db
       .from('entries')
       .select('date, title, mood, content')
       .gte('date', weekAgo)
+      .lte('date', today)
       .order('date', { ascending: false })
       .limit(14)
 
