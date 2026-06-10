@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createUserClient } from '@/lib/supabase-admin'
+import { isValidDate } from '@/lib/validate'
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get('Authorization')
@@ -22,8 +23,7 @@ export async function GET(
     return NextResponse.json({ error: 'Nieprawidłowy token' }, { status: 401 })
   }
 
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-  if (!dateRegex.test(params.date)) {
+  if (!isValidDate(params.date)) {
     return NextResponse.json({ error: 'date musi być w formacie YYYY-MM-DD' }, { status: 400 })
   }
 
@@ -45,6 +45,7 @@ export async function GET(
     content: data.content,
     mood: data.mood,
     date: data.date,
+    photos: data.photos ?? [],
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   })

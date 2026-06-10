@@ -1,13 +1,41 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Pencil, Trash2, AlertTriangle, Heart } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
+import { getSignedUrls } from '@/lib/entry-photos'
 import { AgentChat } from './AgentChat'
 import { toast } from '@/lib/toast'
 import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
+import DOMPurify from 'isomorphic-dompurify'
+
+const ROTATIONS = [-2, 1.5, -1]
+
+function PolaroidPhoto({ url, rotation }: { url: string; rotation: number }) {
+  return (
+    <div
+      style={{
+        background: '#fff',
+        padding: '10px 10px 30px 10px',
+        boxShadow: '0 6px 24px rgba(0,0,0,0.07), 0 2px 6px rgba(0,0,0,0.035)',
+        transform: `rotate(${rotation}deg)`,
+        transition: 'transform 0.2s ease',
+        display: 'inline-block',
+        maxWidth: 200,
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'rotate(0deg) scale(1.03)' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = `rotate(${rotation}deg)` }}
+    >
+      <img
+        src={url}
+        alt=""
+        style={{ display: 'block', width: '100%', height: 170, objectFit: 'cover' }}
+      />
+    </div>
+  )
+}
 
 function fmtFull(iso: string): string {
   const d = new Date(iso)
@@ -29,6 +57,15 @@ interface EntryViewProps {
 export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, theme = DEFAULT_THEME }: EntryViewProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [photoUrls, setPhotoUrls] = useState<string[]>([])
+
+  useEffect(() => {
+    if (entry.photos?.length) {
+      getSignedUrls(entry.photos).then(setPhotoUrls).catch(() => {})
+    } else {
+      setPhotoUrls([])
+    }
+  }, [entry.photos])
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -161,11 +198,20 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
             style={{ background: 'linear-gradient(to left, transparent, rgba(201,153,63,0.35))' }} />
         </div>
 
+        {/* Polaroid photos */}
+        {photoUrls.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-8 mb-10" style={{ paddingTop: 4 }}>
+            {photoUrls.map((url, i) => (
+              <PolaroidPhoto key={i} url={url} rotation={ROTATIONS[i % ROTATIONS.length]} />
+            ))}
+          </div>
+        )}
+
         {/* Body */}
         <div
           className="entry-content"
           style={{ fontFamily: "'Lora', serif", color: '#2B1A0F', lineHeight: 1.85, fontSize: 16, fontWeight: 500 }}
-          dangerouslySetInnerHTML={{ __html: entry.content }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(entry.content) }}
         />
 
         {/* Watermark feather */}

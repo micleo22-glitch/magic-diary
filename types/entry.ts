@@ -7,6 +7,7 @@ export interface Entry {
   createdAt: string // ISO 8601 timestamp
   updatedAt: string // ISO 8601 timestamp
   isFavorite?: boolean
+  photos?: string[] // storage bucket paths
 }
 
 export const MOOD_DATA: { value: number; emoji: string; label: string }[] = [

@@ -2,7 +2,20 @@ import { supabase } from './supabase'
 import { Entry } from '@/types/entry'
 
 function genId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+  return crypto.randomUUID()
+}
+
+async function triggerEmbedding(id: string): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) return
+    fetch('/api/v1/embeddings', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    }).catch(() => {})
+  } catch { /* ignore */ }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,6 +28,7 @@ function rowToEntry(row: any): Entry {
     date: row.date,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    photos: row.photos ?? [],
   }
 }
 
@@ -41,6 +55,7 @@ export async function createEntry(
     content: data.content,
     mood: data.mood,
     date: data.date,
+    photos: data.photos ?? [],
     created_at: now,
     updated_at: now,
     user_id: user.id,
@@ -51,6 +66,7 @@ export async function createEntry(
     .select()
     .single()
   if (error) throw error
+  triggerEmbedding(inserted.id)
   return rowToEntry(inserted)
 }
 
@@ -63,6 +79,7 @@ export async function updateEntry(
   if (changes.content !== undefined) patch.content = changes.content
   if (changes.mood !== undefined) patch.mood = changes.mood
   if (changes.date !== undefined) patch.date = changes.date
+  if (changes.photos !== undefined) patch.photos = changes.photos
 
   const { data, error } = await supabase
     .from('entries')
@@ -71,6 +88,9 @@ export async function updateEntry(
     .select()
     .single()
   if (error) { console.error(error); return null }
+  if (changes.title !== undefined || changes.content !== undefined) {
+    triggerEmbedding(id)
+  }
   return rowToEntry(data)
 }
 

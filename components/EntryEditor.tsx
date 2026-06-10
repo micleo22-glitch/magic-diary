@@ -8,16 +8,25 @@ import Placeholder from '@tiptap/extension-placeholder'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading1, Heading2, Quote, List, ListOrdered,
-  Mic, PenLine, Lock, Save,
+  Mic, Lock, Save, ImagePlus, Image as ImageIcon, X, Loader2,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { MoodPicker } from './MoodPicker'
 import { WeekCalendar } from './WeekCalendar'
 import { createEntry, updateEntry } from '@/lib/storage'
+import { uploadEntryPhoto, deleteEntryPhoto } from '@/lib/entry-photos'
+import { supabase } from '@/lib/supabase'
 import { Entry } from '@/types/entry'
 import { toast } from '@/lib/toast'
 
 const DRAFT_KEY = 'magic_diary_draft'
+
+interface PendingPhoto {
+  id: string
+  name: string
+  path: string
+  status: 'uploading' | 'done' | 'error'
+}
 
 function getGreeting(): string {
   const h = new Date().getHours()
@@ -95,9 +104,24 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
   const [date, setDate] = useState(entry?.date ?? draft.current?.date ?? new Date().toISOString().split('T')[0])
   const [saving, setSaving] = useState(false)
   const [draftSaved, setDraftSaved] = useState(false)
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const greeting = getGreeting()
   const { day, date: dateLabel } = getDayAndDate()
+
+  // Load existing photos when editing
+  useEffect(() => {
+    if (entry?.photos?.length) {
+      setPendingPhotos(entry.photos.map(path => ({
+        id: crypto.randomUUID(),
+        name: path.split('/').pop() ?? path,
+        path,
+        status: 'done' as const,
+      })))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -126,22 +150,67 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
     return () => clearInterval(interval)
   }, [isNew, editor, title, mood, date])
 
+  const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (!files.length) return
+
+    const donePhohos = pendingPhotos.filter(p => p.status !== 'error').length
+    const remaining = 3 - donePhohos
+    if (remaining <= 0) return
+    const toAdd = files.slice(0, remaining)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    for (const file of toAdd) {
+      const tempId = crypto.randomUUID()
+      setPendingPhotos(prev => [...prev, { id: tempId, name: file.name, path: '', status: 'uploading' }])
+      try {
+        const path = await uploadEntryPhoto(user.id, date, file)
+        setPendingPhotos(prev => prev.map(p => p.id === tempId ? { ...p, path, status: 'done' } : p))
+        toast('Zdjęcie dodane', 'success')
+      } catch {
+        setPendingPhotos(prev => prev.map(p => p.id === tempId ? { ...p, status: 'error' } : p))
+        toast('Nie udało się dodać zdjęcia', 'error')
+      }
+    }
+  }, [pendingPhotos, date])
+
+  const handleRemovePhoto = useCallback(async (id: string) => {
+    const photo = pendingPhotos.find(p => p.id === id)
+    if (!photo) return
+
+    setPendingPhotos(prev => prev.filter(p => p.id !== id))
+
+    if (photo.path && photo.status === 'done') {
+      await deleteEntryPhoto(photo.path).catch(() => {})
+      // If editing existing entry, persist the removal immediately
+      if (!isNew && entry) {
+        const newPaths = pendingPhotos
+          .filter(p => p.id !== id && p.status === 'done')
+          .map(p => p.path)
+        await updateEntry(entry.id, { photos: newPaths }).catch(() => {})
+      }
+    }
+  }, [pendingPhotos, isNew, entry])
+
   const handleSave = useCallback(async () => {
     if (!editor) return
     const content = editor.getHTML()
     const text = editor.getText().trim()
-    if (!text) return
+    const donePaths = pendingPhotos.filter(p => p.status === 'done').map(p => p.path)
+    if (!text && !donePaths.length) return
     setSaving(true)
 
-    // Auto-generate title from first sentence if empty
     const finalTitle = title.trim() || extractFirstSentence(content)
 
     try {
       let saved: Entry | null
       if (entry) {
-        saved = await updateEntry(entry.id, { title: finalTitle, content, mood, date })
+        saved = await updateEntry(entry.id, { title: finalTitle, content, mood, date, photos: donePaths })
       } else {
-        saved = await createEntry({ title: finalTitle, content, mood, date })
+        saved = await createEntry({ title: finalTitle, content, mood, date, photos: donePaths })
       }
       if (saved) {
         localStorage.removeItem(DRAFT_KEY)
@@ -153,9 +222,10 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
     } finally {
       setSaving(false)
     }
-  }, [editor, entry, title, mood, date, onSave])
+  }, [editor, entry, title, mood, date, pendingPhotos, onSave])
 
-  const canSave = editor ? editor.getText().trim().length > 0 : false
+  const donePhotos = pendingPhotos.filter(p => p.status === 'done').length
+  const canSave = (editor ? editor.getText().trim().length > 0 : false) || donePhotos > 0
 
   return (
     <motion.div
@@ -248,12 +318,22 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
               <Lock size={8} className="absolute -bottom-0.5 -right-0.5" />
             </span>
           </TBtn>
-          <TBtn onClick={() => {}} active={false} title="Odręczne pisanie — już wkrótce" disabled>
-            <span className="relative inline-flex">
-              <PenLine size={15} />
-              <Lock size={8} className="absolute -bottom-0.5 -right-0.5" />
-            </span>
+          <TBtn
+            onClick={() => fileInputRef.current?.click()}
+            active={false}
+            title={donePhotos >= 3 ? 'Maksymalnie 3 zdjęcia' : 'Dodaj zdjęcie'}
+            disabled={donePhotos >= 3}
+          >
+            <ImagePlus size={15} />
           </TBtn>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/heic"
+            multiple
+            className="hidden"
+            onChange={handlePhotoSelect}
+          />
 
           {/* Draft saved indicator */}
           {draftSaved && (
@@ -264,6 +344,51 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
             </span>
           )}
         </div>
+        </div>
+      )}
+
+      {/* === PHOTO ATTACHMENT CHIPS === */}
+      {pendingPhotos.length > 0 && (
+        <div className="px-3 py-2 flex flex-wrap gap-2 border-b border-[rgba(201,169,110,0.12)]"
+          style={{ background: 'rgba(201,153,63,0.04)' }}>
+          {pendingPhotos.map(photo => (
+            <div
+              key={photo.id}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border"
+              style={{
+                background: photo.status === 'error' ? 'rgba(180,30,30,0.07)' : 'rgba(201,153,63,0.09)',
+                borderColor: photo.status === 'error' ? 'rgba(180,30,30,0.25)' : 'rgba(201,153,63,0.3)',
+                fontFamily: "'Cinzel', serif",
+                fontSize: 10,
+                letterSpacing: '0.04em',
+                color: photo.status === 'error' ? '#E05555' : '#7A5C42',
+                maxWidth: 260,
+              }}
+            >
+              {photo.status === 'uploading' ? (
+                <Loader2 size={11} className="animate-spin flex-shrink-0" style={{ color: '#C9993F' }} />
+              ) : (
+                <ImageIcon size={11} className="flex-shrink-0" style={{ color: photo.status === 'error' ? '#E05555' : '#C9993F' }} />
+              )}
+              <span className="truncate" style={{ maxWidth: 130 }}>
+                {photo.status === 'uploading' ? 'Zdjęcie dodawane...' : photo.status === 'error' ? 'Błąd uploadu' : 'Zdjęcie dodane ✓'}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleRemovePhoto(photo.id)}
+                className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity ml-0.5"
+                title="Usuń"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+          {donePhotos > 0 && (
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(122,92,66,0.45)', letterSpacing: '0.05em' }}
+              className="self-center ml-1">
+              {donePhotos}/3
+            </span>
+          )}
         </div>
       )}
 
