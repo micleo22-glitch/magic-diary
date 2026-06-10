@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Pencil, Trash2, AlertTriangle, Heart } from 'lucide-react'
+import { ArrowLeft, Pencil, Trash2, AlertTriangle, Heart, X } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
 import { getSignedUrls } from '@/lib/entry-photos'
@@ -13,9 +13,115 @@ import DOMPurify from 'isomorphic-dompurify'
 
 const ROTATIONS = [-2, 1.5, -1]
 
-function PolaroidPhoto({ url, rotation }: { url: string; rotation: number }) {
+// ── Lightbox ────────────────────────────────────────────────────
+function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1)
+  const lastDist = useRef<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Lock body scroll while open
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
+  // Escape to close
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  // Non-passive touchmove for pinch-to-zoom
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || lastDist.current === null) return
+      e.preventDefault()
+      const [a, b] = [e.touches[0], e.touches[1]]
+      const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+      setScale(s => Math.max(0.5, Math.min(6, s * (d / lastDist.current!))))
+      lastDist.current = d
+    }
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => el.removeEventListener('touchmove', onTouchMove)
+  }, [])
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const [a, b] = [e.touches[0], e.touches[1]]
+      lastDist.current = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+    }
+  }, [])
+
+  const handleTouchEnd = useCallback(() => { lastDist.current = null }, [])
+
+  // Double-tap to toggle 2× zoom
+  const handleDoubleClick = useCallback(() => {
+    setScale(s => s > 1 ? 1 : 2)
+  }, [])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.82)' }}
+      onClick={onClose}
+    >
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full transition-all"
+        style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.22)' }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)' }}
+      >
+        <X size={18} />
+      </button>
+
+      {/* Image container */}
+      <div
+        ref={containerRef}
+        onClick={e => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onDoubleClick={handleDoubleClick}
+        style={{ touchAction: 'none', cursor: scale > 1 ? 'zoom-out' : 'zoom-in' }}
+      >
+        <motion.img
+          src={url}
+          alt=""
+          initial={{ scale: 0.92, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          draggable={false}
+          style={{
+            maxHeight: '90vh',
+            maxWidth: '92vw',
+            objectFit: 'contain',
+            display: 'block',
+            transform: `scale(${scale})`,
+            transformOrigin: 'center',
+            transition: lastDist.current === null ? 'transform 0.18s ease' : 'none',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}
+        />
+      </div>
+    </motion.div>
+  )
+}
+
+// ── Polaroid ─────────────────────────────────────────────────────
+function PolaroidPhoto({ url, rotation, onClick }: { url: string; rotation: number; onClick: () => void }) {
   return (
     <div
+      onClick={onClick}
       style={{
         background: '#fff',
         padding: '10px 10px 30px 10px',
@@ -24,14 +130,15 @@ function PolaroidPhoto({ url, rotation }: { url: string; rotation: number }) {
         transition: 'transform 0.2s ease',
         display: 'inline-block',
         maxWidth: 200,
+        cursor: 'pointer',
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'rotate(0deg) scale(1.03)' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'rotate(0deg) scale(1.05)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = `rotate(${rotation}deg)` }}
     >
       <img
         src={url}
         alt=""
-        style={{ display: 'block', width: '100%', height: 170, objectFit: 'cover' }}
+        style={{ display: 'block', width: '100%', height: 170, objectFit: 'cover', pointerEvents: 'none' }}
       />
     </div>
   )
@@ -58,6 +165,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [photoUrls, setPhotoUrls] = useState<string[]>([])
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (entry.photos?.length) {
@@ -202,7 +310,12 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
         {photoUrls.length > 0 && (
           <div className="flex flex-wrap justify-center gap-8 mb-10" style={{ paddingTop: 4 }}>
             {photoUrls.map((url, i) => (
-              <PolaroidPhoto key={i} url={url} rotation={ROTATIONS[i % ROTATIONS.length]} />
+              <PolaroidPhoto
+                key={i}
+                url={url}
+                rotation={ROTATIONS[i % ROTATIONS.length]}
+                onClick={() => setLightboxUrl(url)}
+              />
             ))}
           </div>
         )}
@@ -231,6 +344,13 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
       </div>
 
       <AgentChat entry={entry} theme={theme} />
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightboxUrl && (
+          <Lightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
