@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Pencil, Trash2, AlertTriangle, Heart, X } from 'lucide-react'
+import { ArrowLeft, Pencil, Trash2, AlertTriangle, Heart, X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
 import { getSignedUrls } from '@/lib/entry-photos'
@@ -14,10 +14,19 @@ import DOMPurify from 'isomorphic-dompurify'
 const ROTATIONS = [-2, 1.5, -1]
 
 // ── Lightbox ────────────────────────────────────────────────────
+const MIN_SCALE = 1
+const MAX_SCALE = 8
+
 function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
   const [scale, setScale] = useState(1)
-  const lastDist = useRef<number | null>(null)
+  const [pinching, setPinching] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  // Absolute pinch reference: distance + scale captured at gesture start
+  const pinchStart = useRef<{ dist: number; scale: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const zoomed = scale > 1
+
+  const clamp = (s: number) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s))
 
   // Lock body scroll while open
   useEffect(() => {
@@ -33,18 +42,20 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // Non-passive touchmove for pinch-to-zoom
+  // Non-passive listener for pinch-to-zoom (mobile)
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
+
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 2 || lastDist.current === null) return
+      if (e.touches.length !== 2 || !pinchStart.current) return
       e.preventDefault()
       const [a, b] = [e.touches[0], e.touches[1]]
       const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
-      setScale(s => Math.max(0.5, Math.min(6, s * (d / lastDist.current!))))
-      lastDist.current = d
+      // Absolute scale relative to the gesture start — no compounding/jitter
+      setScale(clamp(pinchStart.current.scale * (d / pinchStart.current.dist)))
     }
+
     el.addEventListener('touchmove', onTouchMove, { passive: false })
     return () => el.removeEventListener('touchmove', onTouchMove)
   }, [])
@@ -52,16 +63,32 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       const [a, b] = [e.touches[0], e.touches[1]]
-      lastDist.current = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+      pinchStart.current = {
+        dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        scale,
+      }
+      setPinching(true)
+    }
+  }, [scale])
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) {
+      pinchStart.current = null
+      setPinching(false)
     }
   }, [])
 
-  const handleTouchEnd = useCallback(() => { lastDist.current = null }, [])
-
-  // Double-tap to toggle 2× zoom
-  const handleDoubleClick = useCallback(() => {
-    setScale(s => s > 1 ? 1 : 2)
+  // Click / tap toggles zoom (matches the zoom-in / zoom-out cursor)
+  const toggleZoom = useCallback(() => {
+    setScale(s => (s > 1 ? 1 : 2.5))
   }, [])
+
+  const zoomIn = () => setScale(s => clamp(s * 1.4))
+  const zoomOut = () => setScale(s => clamp(s / 1.4))
+  const resetZoom = () => setScale(1)
+
+  // A dragged image should not also fire the click-to-toggle
+  const draggedRef = useRef(false)
 
   return (
     <motion.div
@@ -87,31 +114,66 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
       {/* Image container */}
       <div
         ref={containerRef}
+        className="overflow-hidden flex items-center justify-center"
         onClick={e => e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        onDoubleClick={handleDoubleClick}
-        style={{ touchAction: 'none', cursor: scale > 1 ? 'zoom-out' : 'zoom-in' }}
+        style={{
+          touchAction: 'none',
+          maxHeight: '90vh',
+          maxWidth: '92vw',
+          cursor: zoomed ? (dragging ? 'grabbing' : 'grab') : 'zoom-in',
+        }}
       >
         <motion.img
           src={url}
           alt=""
-          initial={{ scale: 0.92, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
+          initial={{ opacity: 0 }}
+          animate={{ scale, opacity: 1 }}
+          transition={pinching ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 28, opacity: { duration: 0.2 } }}
+          drag={zoomed}
+          dragMomentum={false}
+          dragElastic={0.06}
+          onDragStart={() => { draggedRef.current = true; setDragging(true) }}
+          onDragEnd={() => { setDragging(false); setTimeout(() => { draggedRef.current = false }, 0) }}
+          onClick={() => { if (!draggedRef.current) toggleZoom() }}
           draggable={false}
           style={{
             maxHeight: '90vh',
             maxWidth: '92vw',
             objectFit: 'contain',
             display: 'block',
-            transform: `scale(${scale})`,
             transformOrigin: 'center',
-            transition: lastDist.current === null ? 'transform 0.18s ease' : 'none',
             userSelect: 'none',
             WebkitUserSelect: 'none',
           }}
         />
+      </div>
+
+      {/* Zoom controls */}
+      <div
+        className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-full px-1.5 py-1.5"
+        style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {[
+          { icon: <ZoomOut size={18} />, action: zoomOut, label: 'Pomniejsz', disabled: scale <= MIN_SCALE },
+          { icon: <Maximize2 size={16} />, action: resetZoom, label: 'Resetuj', disabled: scale === 1 },
+          { icon: <ZoomIn size={18} />, action: zoomIn, label: 'Powiększ', disabled: scale >= MAX_SCALE },
+        ].map((b, i) => (
+          <button
+            key={i}
+            onClick={b.action}
+            disabled={b.disabled}
+            aria-label={b.label}
+            className="w-9 h-9 flex items-center justify-center rounded-full transition-all"
+            style={{ color: 'rgba(255,255,255,0.85)', opacity: b.disabled ? 0.35 : 1 }}
+            onMouseEnter={e => { if (!b.disabled) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.2)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+          >
+            {b.icon}
+          </button>
+        ))}
       </div>
     </motion.div>
   )
