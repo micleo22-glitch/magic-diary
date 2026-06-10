@@ -4,6 +4,14 @@ import { xai } from '@ai-sdk/xai'
 import { streamText, tool, stepCountIs } from 'ai'
 import { z } from 'zod'
 import { hybridSearch } from '@/lib/hybrid-search'
+import { rateLimit } from '@/lib/rate-limit'
+
+function jsonError(message: string, status: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
 
 // ── HTML stripping ────────────────────────────────────────────────────────────
 function stripHtml(html: string): string {
@@ -149,12 +157,28 @@ export async function POST(req: NextRequest) {
     teacher = DEFAULT_TEACHER,
   } = await req.json()
 
+  // ── Auth: a valid Supabase session token is required ──────────────────────────
+  // Without this, anyone could POST here and burn the paid LLM (denial-of-wallet).
+  const token: string | null =
+    accessToken ?? req.headers.get('Authorization')?.replace(/^Bearer /, '') ?? null
+  if (!token) {
+    return jsonError('Brak tokenu — zaloguj się, aby rozmawiać z nauczycielem.', 401)
+  }
+
+  const db = createUserClient(token)
+  const { data: { user }, error: authError } = await db.auth.getUser()
+  if (authError || !user) {
+    return jsonError('Nieprawidłowy lub wygasły token.', 401)
+  }
+
+  // ── Rate limit (best-effort, per user) — see lib/rate-limit.ts caveats ────────
+  if (!rateLimit(`chat:${user.id}`, 20, 60_000)) {
+    return jsonError('Zbyt wiele wiadomości w krótkim czasie — odczekaj chwilę.', 429)
+  }
+
   const apiKey = process.env.XAI_API_KEY
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'Brak klucza API' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return jsonError('Brak klucza API', 500)
   }
 
   const persona = POSTACIE[teacher] ?? POSTACIE[DEFAULT_TEACHER]
@@ -171,8 +195,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Always inject last 7 days — lightweight context (~1000 tokens)
-  if (accessToken) {
-    const db = createUserClient(accessToken)
+  {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const { data: recentEntries } = await db
       .from('entries')
@@ -198,25 +221,22 @@ export async function POST(req: NextRequest) {
       role: m.role as 'user' | 'assistant',
       content: m.text,
     })),
-    tools: accessToken
-      ? {
-          search_diary: tool({
-            description:
-              'Wyszukaj wpisy w dzienniku — semantycznie, po słowach kluczowych i po dacie. Wynik zawsze zawiera ostatnie 7 dni. WYWOŁAJ TO NARZĘDZIE jako pierwszy krok gdy uczeń wspomina jakiekolwiek wydarzenie, osobę, emocję lub nawiązuje do przeszłości.',
-            inputSchema: z.object({
-              query: z.string().describe('Zapytanie — co szukamy w dzienniku (temat, osoba, emocja, wydarzenie)'),
-              date_from: z.string().optional().describe('Opcjonalna data od YYYY-MM-DD'),
-              date_to: z.string().optional().describe('Opcjonalna data do YYYY-MM-DD'),
-            }),
-            execute: async ({ query }) => {
-              const db = createUserClient(accessToken)
-              const results = await hybridSearch(db, query)
-              if (!results.length) return 'Brak pasujących wpisów w dzienniku.'
-              return JSON.stringify(results)
-            },
-          }),
-        }
-      : undefined,
+    tools: {
+      search_diary: tool({
+        description:
+          'Wyszukaj wpisy w dzienniku — semantycznie, po słowach kluczowych i po dacie. Wynik zawsze zawiera ostatnie 7 dni. WYWOŁAJ TO NARZĘDZIE jako pierwszy krok gdy uczeń wspomina jakiekolwiek wydarzenie, osobę, emocję lub nawiązuje do przeszłości.',
+        inputSchema: z.object({
+          query: z.string().describe('Zapytanie — co szukamy w dzienniku (temat, osoba, emocja, wydarzenie)'),
+          date_from: z.string().optional().describe('Opcjonalna data od YYYY-MM-DD'),
+          date_to: z.string().optional().describe('Opcjonalna data do YYYY-MM-DD'),
+        }),
+        execute: async ({ query }) => {
+          const results = await hybridSearch(db, query)
+          if (!results.length) return 'Brak pasujących wpisów w dzienniku.'
+          return JSON.stringify(results)
+        },
+      }),
+    },
     maxOutputTokens: 350,
     temperature: 0.85,
     stopWhen: stepCountIs(3), // agentic loop — SDK handles tool calls automatically

@@ -26,6 +26,16 @@ export interface HybridEntry {
   treść: string
 }
 
+/**
+ * Strip characters that have structural meaning in PostgREST filter strings
+ * (`,` separates OR clauses, `()` group them, `\` escapes). Leaving them raw
+ * would let a crafted query alter the filter shape. RLS already confines results
+ * to the caller's own rows, so this is defence-in-depth, not the only guard.
+ */
+function sanitizeFilterValue(s: string): string {
+  return s.replace(/[(),\\"]/g, ' ').trim()
+}
+
 export async function hybridSearch(
   db: SupabaseClient,
   query: string,
@@ -56,11 +66,12 @@ export async function hybridSearch(
   const today = new Date().toISOString().split('T')[0]
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
+  const safeQuery = sanitizeFilterValue(query)
   const [keywordRes, recentRes] = await Promise.all([
     db
       .from('entries')
       .select('date, title, mood, content')
-      .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+      .or(`title.ilike.%${safeQuery}%,content.ilike.%${safeQuery}%`)
       .order('date', { ascending: false })
       .limit(matchCount),
     db
