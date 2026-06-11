@@ -47,7 +47,7 @@ const HOUSES = [
   { id: 'gryffindor', name: 'Gryffindor', emoji: '🦁', color: '#C41E3A', bg: 'rgba(196,30,58,0.15)' },
   { id: 'slytherin',  name: 'Slytherin',  emoji: '🐍', color: '#2EAD6E', bg: 'rgba(46,173,110,0.12)' },
   { id: 'hufflepuff', name: 'Hufflepuff', emoji: '🦡', color: '#D4A017', bg: 'rgba(212,160,23,0.15)' },
-  { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🦅', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)' },
+  { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🐦‍⬛', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)' },
 ]
 
 const NAV_ITEMS = [

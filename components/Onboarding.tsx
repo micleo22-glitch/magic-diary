@@ -8,7 +8,7 @@ const HOUSES = [
   { id: 'gryffindor', name: 'Gryffindor', emoji: '🦁', color: '#C41E3A', bg: 'rgba(196,30,58,0.15)', desc: 'Odwaga i szlachetność' },
   { id: 'slytherin',  name: 'Slytherin',  emoji: '🐍', color: '#2EAD6E', bg: 'rgba(46,173,110,0.12)',  desc: 'Ambicja i przebiegłość' },
   { id: 'hufflepuff', name: 'Hufflepuff', emoji: '🦡', color: '#ECB939', bg: 'rgba(236,185,57,0.15)', desc: 'Cierpliwość i lojalność' },
-  { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🦅', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)', desc: 'Mądrość i pomysłowość' },
+  { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🐦‍⬛', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)', desc: 'Mądrość i pomysłowość' },
 ]
 
 interface OnboardingProps {
