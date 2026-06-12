@@ -240,7 +240,7 @@ function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) 
       <div
         style={{
           position: 'relative',
-          aspectRatio: '3/4',
+          aspectRatio: '3/4.3',
           width: '100%',
           overflow: 'hidden',
         }}
@@ -252,7 +252,7 @@ function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) 
             position: 'absolute',
             inset: 0,
             width: '100%',
-            height: '100%',
+            height: char.id === 'hedwig' ? 'calc(100% - 5px)' : '100%',
             objectFit: 'cover',
             filter: char.locked ? 'brightness(0.35) saturate(0.4)' : 'none',
           }}
