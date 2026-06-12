@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { X, Lock, GraduationCap, FlaskConical, TreePine, Wand2, Star } from 'lucide-react'
+import { X, Lock, GraduationCap, FlaskConical, TreePine, Wand2, Star, Bird, Sparkles } from 'lucide-react'
 import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
 
 export interface Character {
@@ -32,6 +32,30 @@ export const CHARACTERS: Character[] = [
     photo: '/postacie/snape.webp',
   },
   {
+    id: 'hedwig',
+    name: 'Hedwiga',
+    title: 'Sowa Harrego Pottera',
+    locked: false,
+    accentColor: '#C8C0B0',
+    glowColor: 'rgba(200,192,176,0.35)',
+    gradientFrom: '#0C0C0E',
+    gradientTo: '#18181C',
+    Icon: Bird,
+    photo: '/postacie/hedwiga.webp',
+  },
+  {
+    id: 'dumbledore',
+    name: 'Albus Dumbledore',
+    title: 'Dyrektor Hogwartu',
+    locked: true,
+    accentColor: '#9B7EC8',
+    glowColor: 'rgba(155,126,200,0.35)',
+    gradientFrom: '#0A0810',
+    gradientTo: '#160E22',
+    Icon: Sparkles,
+    photo: '/postacie/dumbledor.webp',
+  },
+  {
     id: 'hagrid',
     name: 'Rubeus Hagrid',
     title: 'Leśnik Hogwartu',
@@ -41,6 +65,7 @@ export const CHARACTERS: Character[] = [
     gradientFrom: '#0E0A06',
     gradientTo: '#1A1208',
     Icon: TreePine,
+    photo: '/postacie/hagrid.webp',
   },
   {
     id: 'mcgonagall',
@@ -52,6 +77,7 @@ export const CHARACTERS: Character[] = [
     gradientFrom: '#060D12',
     gradientTo: '#0C1820',
     Icon: Wand2,
+    photo: '/postacie/mcgonagal.webp',
   },
   {
     id: 'lockhart',
@@ -63,6 +89,7 @@ export const CHARACTERS: Character[] = [
     gradientFrom: '#080A12',
     gradientTo: '#101420',
     Icon: Star,
+    photo: '/postacie/lockhard.webp',
   },
 ]
 
@@ -131,7 +158,7 @@ export function PostacieOverlay({
 
       {/* Grid — 2 cols mobile, 4 cols desktop at 1.5× size */}
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-10">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:max-w-[1000px] md:mx-auto">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:max-w-[720px] md:mx-auto">
           {CHARACTERS.map((char, i) => (
             <CharacterCard
               key={char.id}
@@ -207,14 +234,15 @@ function CharacterCard({
 }
 
 function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) {
-  // Photo characters carry their own frame — show just the image, no card chrome.
-  if (char.photo && !char.locked) {
+  // Photo characters carry their own frame — show just the image (dimmed if locked).
+  if (char.photo) {
     return (
       <div
         style={{
           position: 'relative',
           aspectRatio: '3/4',
           width: '100%',
+          overflow: 'hidden',
         }}
       >
         <img
@@ -225,9 +253,23 @@ function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) 
             inset: 0,
             width: '100%',
             height: '100%',
-            objectFit: 'contain',
+            objectFit: 'cover',
+            filter: char.locked ? 'brightness(0.35) saturate(0.4)' : 'none',
           }}
         />
+        {char.locked && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Lock size={22} style={{ color: `${theme.primary}50` }} />
+          </div>
+        )}
       </div>
     )
   }

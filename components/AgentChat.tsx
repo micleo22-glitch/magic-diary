@@ -15,6 +15,7 @@ interface Message {
 interface AgentChatProps {
   entry: Entry
   theme?: HouseTheme
+  teacher?: string
 }
 
 type MoodFn = (title: string, mood: number | null) => string
@@ -69,7 +70,7 @@ const OPENING_LINE = (title: string, mood: number | null) => {
   return fn(mood)
 }
 
-export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
+export function AgentChat({ entry, theme = DEFAULT_THEME, teacher = 'snape' }: AgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
   const [input, setInput] = useState('')
@@ -155,7 +156,9 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
       if (history.length > 0) {
         setMessages(history.map(m => ({ role: m.role, text: m.text })))
       } else {
-        const opening = OPENING_LINE(entry.title, entry.mood ?? null)
+        const opening = teacher === 'hedwig'
+          ? 'hu huu huuuu huu huuuu'
+          : OPENING_LINE(entry.title, entry.mood ?? null)
         setMessages([{ role: 'assistant', text: opening }])
         saveChatMessage(entry.id, 'assistant', opening)
       }
@@ -190,6 +193,7 @@ export function AgentChat({ entry, theme = DEFAULT_THEME }: AgentChatProps) {
             date: entry.date,
           },
           accessToken,
+          teacher,
         }),
       })
 

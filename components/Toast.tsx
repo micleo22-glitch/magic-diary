@@ -39,7 +39,11 @@ export function ToastContainer() {
   }
 
   return (
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 pointer-events-none items-center">
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed top-5 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 pointer-events-none items-center"
+    >
       <AnimatePresence>
         {toasts.map(t => {
           const c = colors[t.type]

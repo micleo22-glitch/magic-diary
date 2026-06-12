@@ -178,6 +178,20 @@ html, body {
 ::-webkit-scrollbar-thumb { background: rgba(201, 153, 63, 0.3); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(201, 153, 63, 0.5); }
 
+/* Docs page — neutral scrollbar (wrapper + all inner scrollable elements) */
+.docs-scroll::-webkit-scrollbar,
+.docs-scroll *::-webkit-scrollbar { width: 6px; height: 6px; }
+.docs-scroll::-webkit-scrollbar-track,
+.docs-scroll *::-webkit-scrollbar-track { background: transparent; }
+.docs-scroll::-webkit-scrollbar-thumb,
+.docs-scroll *::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 3px; }
+.docs-scroll::-webkit-scrollbar-thumb:hover,
+.docs-scroll *::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.3); }
+
+/* Code blocks have dark bg — use light scrollbar thumb */
+.docs-scroll pre::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); }
+.docs-scroll pre::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.45); }
+
 /* Golden shimmer animation */
 @keyframes shimmer {
   0% { opacity: 0.4; }
@@ -186,6 +200,18 @@ html, body {
 }
 
 .shimmer { animation: shimmer 2s ease-in-out infinite; }
+
+/* Respect the OS "reduce motion" preference for CSS transitions/animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* Line clamp utilities */
 .line-clamp-2 {

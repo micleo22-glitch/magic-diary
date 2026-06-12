@@ -9,14 +9,15 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading1, Heading2, Quote, List, ListOrdered,
   Mic, Lock, Save, ImagePlus, Image as ImageIcon, X, Loader2,
+  Calendar, ChevronDown, Smile,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { MoodPicker } from './MoodPicker'
 import { WeekCalendar } from './WeekCalendar'
 import { createEntry, updateEntry } from '@/lib/storage'
 import { uploadEntryPhoto, deleteEntryPhoto } from '@/lib/entry-photos'
 import { supabase } from '@/lib/supabase'
-import { Entry } from '@/types/entry'
+import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { toast } from '@/lib/toast'
 
 const DRAFT_KEY = 'magic_diary_draft'
@@ -28,20 +29,14 @@ interface PendingPhoto {
   status: 'uploading' | 'done' | 'error'
 }
 
-function getGreeting(): string {
-  const h = new Date().getHours()
-  if (h >= 6 && h < 12) return 'Dzień dobry'
-  if (h >= 12 && h < 18) return 'Dobrego popołudnia'
-  if (h >= 18 && h < 22) return 'Dobry wieczór'
-  return 'Dobranoc'
-}
-
-function getDayAndDate(): { day: string; date: string } {
-  const now = new Date()
-  const days = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota']
-  const months = ['stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca',
-    'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia']
-  return { day: days[now.getDay()], date: `${now.getDate()} ${months[now.getMonth()]}` }
+// Compact label for the date chip: "Dziś" for today, otherwise "11 cze".
+function fmtDateChip(iso: string): string {
+  const todayIso = new Date().toISOString().split('T')[0]
+  if (iso === todayIso) return 'Dziś'
+  const d = new Date(iso)
+  const months = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze',
+    'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
+  return `${d.getDate()} ${months[d.getMonth()]}`
 }
 
 function extractFirstSentence(html: string): string {
@@ -74,9 +69,11 @@ function TBtn({ onClick, active, title, disabled, children }: TBtnProps) {
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={title}
+      aria-pressed={active}
       type="button"
       className={[
-        'p-1.5 rounded-lg transition-all duration-150 relative',
+        'p-2 rounded-lg transition-all duration-150 relative active:scale-90',
         active ? 'bg-[#C9993F] text-white' : 'text-[#7A5C42] hover:bg-[#C9993F]/15 hover:text-[#C9993F]',
         disabled ? 'opacity-40 cursor-not-allowed' : '',
       ].join(' ')}
@@ -105,10 +102,14 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
   const [saving, setSaving] = useState(false)
   const [draftSaved, setDraftSaved] = useState(false)
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([])
+  // Progressive disclosure: only one meta panel (date | mood) expanded at a time.
+  const [metaPanel, setMetaPanel] = useState<'date' | 'mood' | null>(null)
+  // Voice dictation (Web Speech API)
+  const [isRecording, setIsRecording] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const greeting = getGreeting()
-  const { day, date: dateLabel } = getDayAndDate()
 
   // Load existing photos when editing
   useEffect(() => {
@@ -135,6 +136,67 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
       attributes: { class: 'tiptap-content outline-none' },
     },
   })
+
+  // Writing is the primary action — focus the editor body on mount for new entries.
+  useEffect(() => {
+    if (!isNew || !editor) return
+    const t = setTimeout(() => editor.commands.focus('end'), 120)
+    return () => clearTimeout(t)
+  }, [isNew, editor])
+
+  // Detect Web Speech API support (Chrome/Edge/Safari) and clean up on unmount.
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    setSpeechSupported(!!SR)
+    return () => { try { recognitionRef.current?.stop() } catch { /* noop */ } }
+  }, [])
+
+  // Toggle voice dictation: final transcript chunks are inserted at the cursor.
+  const toggleDictation = useCallback(() => {
+    if (!editor) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) return
+
+    if (isRecording) {
+      try { recognitionRef.current?.stop() } catch { /* noop */ }
+      return
+    }
+
+    const rec = new SR()
+    rec.lang = 'pl-PL'
+    rec.continuous = true
+    rec.interimResults = false
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
+      let finalText = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript
+      }
+      const t = finalText.trim()
+      if (t) editor.chain().focus().insertContent(t + ' ').run()
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onerror = (e: any) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        toast('Brak dostępu do mikrofonu', 'error')
+      } else if (e.error === 'no-speech') {
+        toast('Nie wykryto mowy', 'info')
+      }
+      setIsRecording(false)
+    }
+    rec.onend = () => { setIsRecording(false); recognitionRef.current = null }
+
+    recognitionRef.current = rec
+    try {
+      rec.start()
+      setIsRecording(true)
+      toast('Słucham… mów po polsku', 'info')
+    } catch {
+      setIsRecording(false)
+    }
+  }, [editor, isRecording])
 
   // Auto-save draft for new entries every 30s
   useEffect(() => {
@@ -234,31 +296,123 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
       transition={{ duration: 0.3 }}
       className="parchment-bg min-h-full flex flex-col"
     >
-      {/* === HEADER === */}
-      <div className="pt-5 pb-4 border-b border-[rgba(201,169,110,0.2)]">
+      {/* === META BAR (data + nastrój, progresywne odsłanianie) === */}
+      <div className="px-4 pt-4 pb-3 border-b border-[rgba(201,169,110,0.2)]">
+        <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+          {/* Date chip */}
+          <button
+            type="button"
+            onClick={() => setMetaPanel(p => (p === 'date' ? null : 'date'))}
+            aria-expanded={metaPanel === 'date'}
+            aria-label={`Data wpisu: ${fmtDateChip(date)}. Kliknij, aby zmienić.`}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all active:scale-[0.97]"
+            style={{
+              borderColor: metaPanel === 'date' ? '#C9993F' : 'rgba(201,169,110,0.3)',
+              background: metaPanel === 'date' ? 'rgba(201,153,63,0.12)' : 'rgba(255,255,255,0.4)',
+            }}
+          >
+            <Calendar size={15} style={{ color: '#C9993F' }} />
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, color: '#5C3D28', letterSpacing: '0.02em' }}>
+              {fmtDateChip(date)}
+            </span>
+            <ChevronDown
+              size={13}
+              style={{
+                color: '#7A5C42',
+                transform: metaPanel === 'date' ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.2s ease',
+              }}
+            />
+          </button>
 
-        {/* Greeting + day/date */}
-        <div className="px-4 mb-3">
-          <p style={{ fontFamily: "'Lora', Georgia, serif", color: '#7A5C42', fontSize: 30, lineHeight: 1.15, fontWeight: 500 }}
-            className="mb-1">
-            {greeting}
-          </p>
-          <p style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 15, fontWeight: 600 }}>
-            {day} &nbsp;·&nbsp; {dateLabel}
-          </p>
+          {/* Mood chip */}
+          <button
+            type="button"
+            onClick={() => setMetaPanel(p => (p === 'mood' ? null : 'mood'))}
+            aria-expanded={metaPanel === 'mood'}
+            aria-label={mood ? `Nastrój: ${MOOD_LABEL[mood]}. Kliknij, aby zmienić.` : 'Wybierz nastrój dnia'}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all active:scale-[0.97]"
+            style={{
+              borderColor: metaPanel === 'mood' ? '#C9993F' : 'rgba(201,169,110,0.3)',
+              background: metaPanel === 'mood' ? 'rgba(201,153,63,0.12)' : 'rgba(255,255,255,0.4)',
+            }}
+          >
+            {mood ? (
+              <span style={{ fontSize: 15, lineHeight: 1 }}>{MOOD_EMOJI[mood]}</span>
+            ) : (
+              <Smile size={15} style={{ color: '#C9993F' }} />
+            )}
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, color: '#5C3D28', letterSpacing: '0.02em' }}>
+              {mood ? MOOD_LABEL[mood] : 'Nastrój'}
+            </span>
+            <ChevronDown
+              size={13}
+              style={{
+                color: '#7A5C42',
+                transform: metaPanel === 'mood' ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.2s ease',
+              }}
+            />
+          </button>
+
+          {/* Photo chip — direct action (opens file picker) */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={donePhotos >= 3}
+            aria-label={donePhotos >= 3 ? 'Osiągnięto limit 3 zdjęć' : 'Dodaj zdjęcie'}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              borderColor: donePhotos > 0 ? '#C9993F' : 'rgba(201,169,110,0.3)',
+              background: donePhotos > 0 ? 'rgba(201,153,63,0.12)' : 'rgba(255,255,255,0.4)',
+            }}
+          >
+            <ImagePlus size={15} style={{ color: '#C9993F' }} />
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, color: '#5C3D28', letterSpacing: '0.02em' }}>
+              {donePhotos > 0 ? `Zdjęcia ${donePhotos}/3` : 'Zdjęcie'}
+            </span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/heic"
+            multiple
+            className="hidden"
+            onChange={handlePhotoSelect}
+          />
         </div>
 
-        {/* Calendar */}
-        <WeekCalendar selectedDate={date} onSelectDate={setDate} />
-
-        {/* Mood */}
-        <div className="px-4 mt-4">
-          <p style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 14, fontWeight: 600 }}
-            className="text-center mb-3">
-            Jak się dziś czujesz?
-          </p>
-          <MoodPicker value={mood} onChange={setMood} />
-        </div>
+        {/* Expandable panels */}
+        <AnimatePresence initial={false}>
+          {metaPanel === 'date' && (
+            <motion.div
+              key="date-panel"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="pt-3">
+                <WeekCalendar selectedDate={date} onSelectDate={setDate} />
+              </div>
+            </motion.div>
+          )}
+          {metaPanel === 'mood' && (
+            <motion.div
+              key="mood-panel"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="pt-3">
+                <MoodPicker value={mood} onChange={setMood} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* === TITLE === */}
@@ -282,7 +436,7 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
       {/* === TOOLBAR === */}
       {editor && (
         <div className="toolbar-scroll border-b border-[rgba(201,169,110,0.15)]">
-        <div className="px-3 py-2 flex items-center gap-0.5 min-w-max">
+        <div className="px-3 py-2 flex flex-wrap items-center justify-center gap-0.5 md:flex-nowrap md:justify-start md:min-w-max">
           <TBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold">
             <Bold size={15} />
           </TBtn>
@@ -312,31 +466,31 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
             <ListOrdered size={15} />
           </TBtn>
           <div className="w-px h-5 bg-[rgba(201,169,110,0.3)] mx-1 self-center" />
-          <TBtn onClick={() => {}} active={false} title="Dyktowanie — już wkrótce" disabled>
+          <TBtn
+            onClick={toggleDictation}
+            active={isRecording}
+            title={speechSupported
+              ? (isRecording ? 'Zatrzymaj dyktowanie' : 'Dyktowanie głosowe (pl)')
+              : 'Dyktowanie niedostępne w tej przeglądarce'}
+            disabled={!speechSupported}
+          >
             <span className="relative inline-flex">
-              <Mic size={15} />
-              <Lock size={8} className="absolute -bottom-0.5 -right-0.5" />
+              <Mic size={15} className={isRecording ? 'animate-pulse' : ''} />
+              {!speechSupported && <Lock size={8} className="absolute -bottom-0.5 -right-0.5" />}
             </span>
           </TBtn>
-          <TBtn
-            onClick={() => fileInputRef.current?.click()}
-            active={false}
-            title={donePhotos >= 3 ? 'Maksymalnie 3 zdjęcia' : 'Dodaj zdjęcie'}
-            disabled={donePhotos >= 3}
-          >
-            <ImagePlus size={15} />
-          </TBtn>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/heic"
-            multiple
-            className="hidden"
-            onChange={handlePhotoSelect}
-          />
+          {/* Recording indicator */}
+          {isRecording && (
+            <span className="ml-3 flex items-center gap-1.5 flex-shrink-0"
+              aria-live="polite"
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.06em', color: '#B43030' }}>
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#B43030' }} />
+              Słucham…
+            </span>
+          )}
 
           {/* Draft saved indicator */}
-          {draftSaved && (
+          {draftSaved && !isRecording && (
             <span className="ml-4 flex items-center gap-1 text-[#7A5C42] opacity-70 flex-shrink-0"
               style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: '0.06em' }}>
               <Save size={10} />

@@ -25,6 +25,9 @@ function getStandaloneOpening(characterId: string): string {
   if (characterId === 'snape') {
     return SNAPE_STANDALONE_OPENINGS[Math.floor(Math.random() * SNAPE_STANDALONE_OPENINGS.length)]
   }
+  if (characterId === 'hedwig') {
+    return 'hu huu huuuu huu huuuu'
+  }
   return 'Słucham.'
 }
 

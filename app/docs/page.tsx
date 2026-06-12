@@ -431,7 +431,7 @@ export default function DocsPage() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '24px 16px' : '32px 24px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 24 : 40 }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '24px 16px 72px' : '32px 24px 80px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 24 : 40 }}>
 
         {/* Sidebar */}
         <aside style={{ width: isMobile ? '100%' : 200, flexShrink: 0 }}>

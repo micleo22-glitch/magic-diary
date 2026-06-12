@@ -220,9 +220,10 @@ interface EntryViewProps {
   onBack: () => void
   onToggleFavorite?: () => void
   theme?: HouseTheme
+  teacher?: string
 }
 
-export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, theme = DEFAULT_THEME }: EntryViewProps) {
+export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, theme = DEFAULT_THEME, teacher }: EntryViewProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [photoUrls, setPhotoUrls] = useState<string[]>([])
@@ -266,6 +267,8 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
             <button
               onClick={onToggleFavorite}
               title={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+              aria-label={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+              aria-pressed={entry.isFavorite}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all"
               style={{
                 color: entry.isFavorite ? '#C9993F' : 'rgba(122,92,66,0.5)',
@@ -286,6 +289,8 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
           </button>
           <button
             onClick={() => setConfirmDelete(true)}
+            aria-label="Usuń wpis"
+            title="Usuń wpis"
             className="flex items-center gap-1.5 px-3 py-1.5 text-[#8B1A1A] border border-[#8B1A1A]/35 rounded-xl hover:bg-[#8B1A1A]/10 transition-all"
           >
             <Trash2 size={13} />
@@ -404,7 +409,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
         </div>
       </div>
 
-      <AgentChat entry={entry} theme={theme} />
+      <AgentChat entry={entry} theme={theme} teacher={teacher} />
 
       {/* Lightbox */}
       <AnimatePresence>

@@ -64,7 +64,9 @@ function NavBtn({ icon, label, active, onClick, theme }: {
   return (
     <button
       onClick={onClick}
-      className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl transition-all duration-200"
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+      className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl transition-all duration-200 active:scale-95 active:bg-[rgba(201,153,63,0.08)]"
       style={{
         color: active ? theme.primary : 'rgba(200,170,120,0.9)',
       }}

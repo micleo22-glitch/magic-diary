@@ -11,7 +11,7 @@ interface MoodPickerProps {
 const SHORT_LABEL: Record<number, string> = {
   5: 'Świetnie',
   4: 'Dobrze',
-  3: 'Neutral',
+  3: 'Neutralnie',
   2: 'Źle',
   1: 'Koszmar',
 }
@@ -26,6 +26,8 @@ export function MoodPicker({ value, onChange }: MoodPickerProps) {
             key={m.value}
             onClick={() => onChange(selected ? null : m.value as 1 | 2 | 3 | 4 | 5)}
             title={m.label}
+            aria-label={m.label}
+            aria-pressed={selected}
             className={[
               'flex-1 flex flex-col items-center gap-1 py-2',
               'transition-all duration-200 rounded-xl border',

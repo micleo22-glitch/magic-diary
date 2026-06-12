@@ -39,7 +39,8 @@ export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) 
         {/* Strzałka wstecz */}
         <button
           onClick={() => setWeekOffset(o => o - 1)}
-          className="flex-shrink-0 p-1.5 rounded-lg text-[#7A5C42] hover:bg-[#C9993F]/15 hover:text-[#C9993F] transition-all"
+          aria-label="Poprzedni tydzień"
+          className="flex-shrink-0 p-2 rounded-lg text-[#7A5C42] hover:bg-[#C9993F]/15 hover:text-[#C9993F] transition-all active:scale-90"
         >
           <ChevronLeft size={16} />
         </button>
@@ -49,6 +50,8 @@ export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) 
           <button
             key={day.iso}
             onClick={() => onSelectDate(day.iso)}
+            aria-label={`${day.name} ${day.num}${day.isToday ? ' (dziś)' : ''}`}
+            aria-pressed={day.isSel}
             style={{ borderRadius: 16 }}
             className={[
               'flex-1 flex flex-col items-center py-2 transition-all duration-150',
@@ -72,7 +75,8 @@ export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) 
         {/* Strzałka do przodu */}
         <button
           onClick={() => setWeekOffset(o => o + 1)}
-          className="flex-shrink-0 p-1.5 rounded-lg text-[#7A5C42] hover:bg-[#C9993F]/15 hover:text-[#C9993F] transition-all"
+          aria-label="Następny tydzień"
+          className="flex-shrink-0 p-2 rounded-lg text-[#7A5C42] hover:bg-[#C9993F]/15 hover:text-[#C9993F] transition-all active:scale-90"
         >
           <ChevronRight size={16} />
         </button>

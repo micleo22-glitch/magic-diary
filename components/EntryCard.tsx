@@ -1,17 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical, Eye, Trash2, X, AlertTriangle, Heart } from 'lucide-react'
-import { Entry, MOOD_EMOJI } from '@/types/entry'
+import { MoreVertical, Eye, Trash2, AlertTriangle, Heart } from 'lucide-react'
+import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
+import { relativeDate } from '@/lib/dates'
 import { toast } from '@/lib/toast'
-
-function fmtDate(iso: string): string {
-  const d = new Date(iso)
-  const months = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze',
-    'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
-}
 
 function stripHtml(html: string): string {
   if (typeof document === 'undefined') return html
@@ -49,13 +43,22 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted, onToggleFavor
       {/* Main card content */}
       <div className="p-4 flex gap-3 items-start">
         <div className="flex-1 min-w-0">
-          <p style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: '#5C3D28', fontWeight: 600 }} className="mb-1">
-            {fmtDate(entry.date)}
-          </p>
+          {/* Title — primary */}
           <h3 style={{ fontFamily: "'Playfair Display', serif" }}
-            className="text-[#1A0A06] font-bold text-base leading-tight truncate mb-1">
+            className="text-[#1A0A06] font-bold text-lg leading-snug truncate mb-1">
             {entry.title || 'Bez tytułu'}
           </h3>
+          {/* Meta — date + mood, quiet */}
+          <div className="flex items-center gap-1.5 mb-2" style={{ fontFamily: "'Lora', serif", fontSize: 12.5, color: '#7A5C42' }}>
+            <span style={{ fontWeight: 600 }}>{relativeDate(entry.date)}</span>
+            {entry.mood ? (
+              <>
+                <span style={{ opacity: 0.5 }}>·</span>
+                <span className="leading-none" style={{ fontSize: 14 }}>{MOOD_EMOJI[entry.mood]}</span>
+                <span>{MOOD_LABEL[entry.mood]}</span>
+              </>
+            ) : null}
+          </div>
           {preview && (
             <p style={{ fontFamily: "'Lora', serif", fontSize: 14, fontWeight: 500 }}
               className="text-[#5C3D28] leading-relaxed line-clamp-2">
@@ -64,23 +67,25 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted, onToggleFavor
           )}
         </div>
 
-        <div className="flex flex-col items-center gap-1 flex-shrink-0 pt-1">
-          {entry.mood ? (
-            <span className="text-lg leading-none">{MOOD_EMOJI[entry.mood]}</span>
-          ) : null}
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
           {onToggleFavorite && (
             <button
               onClick={e => { e.stopPropagation(); onToggleFavorite() }}
-              className="p-1 rounded-lg transition-all duration-150"
-              style={{ color: entry.isFavorite ? '#C9993F' : 'rgba(122,92,66,0.35)' }}
+              className="p-2 rounded-lg transition-all duration-150 active:scale-90"
+              style={{ color: entry.isFavorite ? '#C9993F' : 'rgba(122,92,66,0.55)' }}
               title={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+              aria-label={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+              aria-pressed={entry.isFavorite}
             >
               <Heart size={13} fill={entry.isFavorite ? 'currentColor' : 'none'} />
             </button>
           )}
           <button
             onClick={e => { e.stopPropagation(); setMenu(v => !v); setConfirmDelete(false) }}
-            className="p-1 text-[#7A5C42] hover:text-[#C9993F] rounded-lg transition-colors"
+            className="p-2 text-[#7A5C42] hover:text-[#C9993F] rounded-lg transition-colors active:scale-90"
+            aria-label="Więcej opcji"
+            aria-haspopup="menu"
+            aria-expanded={menu}
           >
             <MoreVertical size={14} />
           </button>

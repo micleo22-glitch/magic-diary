@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import {
   X, User, GraduationCap, ShoppingBag, Settings, LogOut,
-  Download, Trash2, Mail, KeyRound, Star, BookOpen,
+  Download, Trash2, Mail, KeyRound, Star, BookOpen, Feather,
 } from 'lucide-react'
 import { SplashScreen } from './SplashScreen'
 import { EntryEditor } from './EntryEditor'
@@ -136,7 +136,7 @@ function SectionCard({ label, children }: { label: string; children: React.React
   return (
     <div className="rounded-2xl border border-[rgba(201,153,63,0.15)]" style={{ background: 'rgba(255,255,255,0.03)' }}>
       <div className="px-4 pt-4 pb-5">
-        <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.5)', letterSpacing: '0.12em' }}
+        <p style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.8)', letterSpacing: '0.12em', fontWeight: 700 }}
           className="mb-3 uppercase">{label}</p>
         {children}
       </div>
@@ -145,6 +145,15 @@ function SectionCard({ label, children }: { label: string; children: React.React
 }
 
 export function App() {
+  // Respect the OS "reduce motion" setting across all framer-motion animations.
+  return (
+    <MotionConfig reducedMotion="user">
+      <AppInner />
+    </MotionConfig>
+  )
+}
+
+function AppInner() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [view, setView] = useState<View>('splash')
   const [entries, setEntries] = useState<Entry[]>([])
@@ -158,8 +167,10 @@ export function App() {
   const [house, setHouse] = useState('')
   const [defaultAgent, setDefaultAgent] = useState('snape')
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [deletingAll, setDeletingAll] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [profileChecked, setProfileChecked] = useState(false)
+  const [entriesLoading, setEntriesLoading] = useState(true)
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
 
   // First paint: pre-fill from cache only (server metadata is the source of truth).
@@ -227,6 +238,7 @@ export function App() {
   const reload = useCallback(async () => {
     const data = await getEntries()
     setEntries(data)
+    setEntriesLoading(false)
     return data
   }, [])
 
@@ -302,11 +314,19 @@ export function App() {
   const handleLogout = async () => { await supabase.auth.signOut() }
 
   async function handleDeleteAll() {
-    for (const e of entries) await deleteEntry(e.id)
-    reload()
-    setConfirmDeleteAll(false)
-    setMobilePanel(null)
-    toast('Wszystkie wpisy usunięte', 'info')
+    if (deletingAll) return
+    setDeletingAll(true)
+    try {
+      await Promise.all(entries.map(e => deleteEntry(e.id)))
+      await reload()
+      toast('Wszystkie wpisy usunięte', 'info')
+    } catch {
+      toast('Nie udało się usunąć wszystkich wpisów', 'error')
+    } finally {
+      setDeletingAll(false)
+      setConfirmDeleteAll(false)
+      setMobilePanel(null)
+    }
   }
 
   if (session === undefined) return null
@@ -371,16 +391,27 @@ export function App() {
           onBack={() => setView('entries')}
           onToggleFavorite={() => handleToggleFavorite(selectedEntry.id)}
           theme={houseTheme}
+          teacher={defaultAgent}
         />
       )
     }
     return (
-      <div className="parchment-bg h-full flex flex-col items-center justify-center gap-3">
-        <span style={{ fontSize: 56, opacity: 0.18 }}>✍️</span>
-        <p style={{ fontFamily: "'Playfair Display', serif", color: 'rgba(201,153,63,0.55)', fontSize: 18 }}
+      <div className="parchment-bg h-full flex flex-col items-center justify-center gap-5 px-6 text-center">
+        <Feather size={52} style={{ color: '#C9993F', opacity: 0.28 }} strokeWidth={1.5} />
+        <p style={{ fontFamily: "'Playfair Display', serif", color: 'rgba(122,92,66,0.9)', fontSize: 18 }}
           className="italic">
-          Wybierz wpis z listy lub utwórz nowy
+          {entries.length === 0
+            ? 'Twój pamiętnik czeka na pierwszy wpis'
+            : 'Wybierz wpis z listy albo zacznij nowy'}
         </p>
+        <button
+          onClick={handleNew}
+          style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}
+          className="flex items-center gap-2 px-6 py-3 bg-[#C9993F] text-[#1A0A06] rounded-xl hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
+        >
+          <Feather size={15} />
+          {entries.length === 0 ? 'Napisz pierwszy wpis' : 'Nowy wpis'}
+        </button>
       </div>
     )
   }
@@ -498,7 +529,7 @@ export function App() {
               </svg>
             </div>
           </div>
-          <p style={{ fontFamily: "'Lora', serif", fontSize: 11, color: 'rgba(201,153,63,0.4)', marginTop: 8 }}>
+          <p style={{ fontFamily: "'Lora', serif", fontSize: 11, color: 'rgba(201,153,63,0.7)', marginTop: 8 }}>
             Wybrana postać będzie domyślnie otwarta w nowych wpisach.
           </p>
         </SectionCard>
@@ -550,14 +581,16 @@ export function App() {
               </p>
               <div className="flex gap-2">
                 <button onClick={() => setConfirmDeleteAll(false)}
-                  className="flex-1 py-2 rounded-xl border border-[rgba(201,153,63,0.2)] transition-colors"
-                  style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: 'rgba(201,153,63,0.6)' }}>
+                  disabled={deletingAll}
+                  className="flex-1 py-2 rounded-xl border border-[rgba(201,153,63,0.2)] transition-colors disabled:opacity-50"
+                  style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: 'rgba(201,153,63,0.85)' }}>
                   Anuluj
                 </button>
                 <button onClick={handleDeleteAll}
-                  className="flex-1 py-2 rounded-xl transition-colors"
+                  disabled={deletingAll}
+                  className="flex-1 py-2 rounded-xl transition-colors disabled:opacity-60"
                   style={{ background: 'rgba(180,30,30,0.3)', fontFamily: "'Cinzel', serif", fontSize: 11, color: '#E05555' }}>
-                  Usuń
+                  {deletingAll ? 'Usuwanie…' : 'Usuń'}
                 </button>
               </div>
             </div>
@@ -606,7 +639,7 @@ export function App() {
             ].map(({ label, value }) => (
               <div key={label} className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl"
                 style={{ background: 'rgba(201,153,63,0.06)', border: '1px solid rgba(201,153,63,0.1)' }}>
-                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.45)', letterSpacing: '0.1em' }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: 'rgba(201,153,63,0.75)', letterSpacing: '0.1em', fontWeight: 700 }}>
                   {label.toUpperCase()}
                 </span>
                 <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: '#D4A96A' }}>
@@ -725,10 +758,12 @@ export function App() {
                       else if (label === 'Postacie') setMobilePanel('postacie')
                       else toast('Wkrótce dostępne', 'info')
                     }}
-                    className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-colors"
+                    className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all active:scale-[0.98]"
                     style={{ color: houseTheme.primary }}
                     onMouseEnter={e => (e.currentTarget.style.background = houseTheme.primaryDim)}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    onPointerDown={e => (e.currentTarget.style.background = houseTheme.primaryDim)}
+                    onPointerUp={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <Icon size={20} style={{ color: houseTheme.primary, opacity: 0.65 }} />
                     <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, letterSpacing: '0.08em' }}>
@@ -747,13 +782,15 @@ export function App() {
               {/* Wyloguj */}
               <button
                 onClick={() => { setMenuOpen(false); handleLogout() }}
-                className="w-full flex items-center gap-3 px-7 py-4 border-t transition-colors"
+                className="w-full flex items-center gap-3 px-7 py-4 border-t transition-all active:scale-[0.98]"
                 style={{
                   borderColor: houseTheme.borderColor,
                   fontFamily: "'Cinzel', serif", color: `${houseTheme.primary}CC`, fontSize: 12, letterSpacing: '0.08em', fontWeight: 700,
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = houseTheme.primaryDim)}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                onPointerDown={e => (e.currentTarget.style.background = houseTheme.primaryDim)}
+                onPointerUp={e => (e.currentTarget.style.background = 'transparent')}
               >
                 <LogOut size={15} style={{ opacity: 0.75 }} />
                 Wyloguj się
@@ -823,6 +860,7 @@ export function App() {
           onExport={() => { exportEntries(entries); toast('Plik pobrany', 'success') }}
           onDeleteAll={handleDeleteAll}
           onPostacie={() => setMobilePanel('postacie')}
+          loading={entriesLoading && entries.length === 0}
         />
       </div>
 
@@ -859,6 +897,7 @@ export function App() {
               onNewEntry={handleNew}
               onEntryDeleted={handleDeleted}
               onToggleFavorite={handleToggleFavorite}
+              loading={entriesLoading && entries.length === 0}
             />
           ) : (
             rightPanel

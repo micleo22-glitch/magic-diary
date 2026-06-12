@@ -2,15 +2,30 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 type Mode = 'login' | 'register' | 'forgot'
+
+// Map common raw Supabase auth errors to friendly Polish messages with a hint.
+function plError(raw: string): string {
+  const m = raw.toLowerCase()
+  if (m.includes('invalid login credentials')) return 'Nieprawidłowy e-mail lub hasło. Sprawdź dane i spróbuj ponownie.'
+  if (m.includes('email not confirmed')) return 'Najpierw potwierdź konto — kliknij link w e-mailu, który wysłaliśmy.'
+  if (m.includes('user already registered') || m.includes('already registered')) return 'Konto z tym e-mailem już istnieje. Zaloguj się zamiast rejestrować.'
+  if (m.includes('password should be at least')) return 'Hasło musi mieć co najmniej 6 znaków.'
+  if (m.includes('unable to validate email') || m.includes('invalid email')) return 'To nie wygląda na poprawny adres e-mail.'
+  if (m.includes('rate limit') || m.includes('too many')) return 'Zbyt wiele prób. Odczekaj chwilę i spróbuj ponownie.'
+  if (m.includes('network')) return 'Problem z połączeniem. Sprawdź internet i spróbuj ponownie.'
+  return raw
+}
 
 export function AuthScreen() {
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
 
   const reset = () => { setEmail(''); setPassword(''); setMessage(null) }
@@ -25,12 +40,12 @@ export function AuthScreen() {
     try {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) setMessage({ text: error.message, ok: false })
+        if (error) setMessage({ text: plError(error.message), ok: false })
 
       } else if (mode === 'register') {
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) {
-          setMessage({ text: error.message, ok: false })
+          setMessage({ text: plError(error.message), ok: false })
         } else {
           setMessage({ text: 'Sprawdź skrzynkę e-mail i potwierdź konto.', ok: true })
         }
@@ -38,7 +53,7 @@ export function AuthScreen() {
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email)
         if (error) {
-          setMessage({ text: error.message, ok: false })
+          setMessage({ text: plError(error.message), ok: false })
         } else {
           setMessage({ text: 'Link do resetowania hasła został wysłany.', ok: true })
         }
@@ -56,7 +71,7 @@ export function AuthScreen() {
       provider: 'google',
       options: { redirectTo: window.location.origin },
     })
-    if (error) { setMessage({ text: error.message, ok: false }); setLoading(false) }
+    if (error) { setMessage({ text: plError(error.message), ok: false }); setLoading(false) }
   }
 
   return (
@@ -118,11 +133,13 @@ export function AuthScreen() {
             <input
               type="email"
               required
+              autoComplete="email"
+              inputMode="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="twoj@email.com"
               className="w-full px-4 py-3 rounded-xl outline-none border border-[rgba(201,153,63,0.3)] focus:border-[#C9993F] transition-colors"
-              style={{ background: 'rgba(255,255,255,0.6)', fontFamily: "'Lora', serif", color: '#1A0A06', fontSize: 14, fontWeight: 500 }}
+              style={{ background: 'rgba(255,255,255,0.6)', fontFamily: "'Lora', serif", color: '#1A0A06', fontSize: 16, fontWeight: 500 }}
             />
           </div>
 
@@ -137,22 +154,36 @@ export function AuthScreen() {
                 <label style={{ fontFamily: "'Cinzel', serif", color: '#5C3D28', fontSize: 11, fontWeight: 700 }}>
                   HASŁO
                 </label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  minLength={6}
-                  className="w-full px-4 py-3 rounded-xl outline-none border border-[rgba(201,153,63,0.3)] focus:border-[#C9993F] transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.6)', fontFamily: "'Lora', serif", color: '#1A0A06', fontSize: 14, fontWeight: 500 }}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    minLength={6}
+                    className="w-full px-4 py-3 pr-11 rounded-xl outline-none border border-[rgba(201,153,63,0.3)] focus:border-[#C9993F] transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.6)', fontFamily: "'Lora', serif", color: '#1A0A06', fontSize: 16, fontWeight: 500 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(s => !s)}
+                    aria-label={showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
+                    aria-pressed={showPassword}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 rounded-lg text-[#7A5C42] hover:text-[#C9993F] transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
           {message && (
             <p
+              role={message.ok ? 'status' : 'alert'}
+              aria-live={message.ok ? 'polite' : 'assertive'}
               className="text-center text-sm px-2 py-2 rounded-lg"
               style={{
                 fontFamily: "'Lora', serif",

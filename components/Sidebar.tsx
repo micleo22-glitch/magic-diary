@@ -3,21 +3,18 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Feather, Search, User, GraduationCap, ShoppingBag, Settings,
-  LogOut, ChevronRight, ChevronLeft, X, Download, Trash2, Mail, Heart, BookOpen, Camera,
+  LogOut, ChevronRight, ChevronLeft, ChevronDown, X, Download, Trash2, Mail, Heart, BookOpen, Camera,
+  SlidersHorizontal,
 } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { HouseTheme, DEFAULT_THEME, streakLabel } from '@/lib/houseTheme'
+import { relativeDate } from '@/lib/dates'
 import { toast } from '@/lib/toast'
 import { CHARACTERS } from './PostacieOverlay'
 
 const PL_MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
   'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']
-
-function fmtShort(iso: string): string {
-  const d = new Date(iso)
-  const months = ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru']
-  return `${d.getDate()} ${months[d.getMonth()]}`
-}
 
 function getInitials(email: string): string {
   const name = email.split('@')[0]
@@ -75,7 +72,10 @@ interface SidebarProps {
   onExport: () => void
   onDeleteAll: () => void
   onPostacie: () => void
+  loading?: boolean
 }
+
+const RECENT_COUNT = 5
 
 function SectionCard({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -94,10 +94,13 @@ export function Sidebar({
   entries, selectedEntryId, onSelectEntry, onNewEntry, onToggleFavorite,
   userEmail, username, house, defaultAgent = 'snape', theme = DEFAULT_THEME, onLogout,
   onUsernameChange, onHouseChange, onDefaultAgentChange, onExport, onDeleteAll, onPostacie,
+  loading = false,
 }: SidebarProps) {
   type Sort = 'newest' | 'oldest' | 'mood'
   const SORT_KEY = 'magic_diary_sort'
 
+  // 'recent' = clean default (5 latest, no filters); 'all' = full search + filters.
+  const [mode, setMode] = useState<'recent' | 'all'>('recent')
   const [q, setQ]                       = useState('')
   const sidebarSearchRef = useRef<HTMLInputElement>(null)
   useEffect(() => { sidebarSearchRef.current?.blur() }, [])
@@ -112,6 +115,7 @@ export function Sidebar({
   const [activeNav, setActiveNav]       = useState<string | null>(null)
   const [localUsername, setLocalUsername] = useState(username)
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [showFilters, setShowFilters]   = useState(false)
 
   const now          = new Date()
   const todayIso     = now.toISOString().slice(0, 10)
@@ -159,6 +163,15 @@ export function Sidebar({
   const houseData  = HOUSES.find(h => h.id === house)
   const initials   = username ? username.slice(0, 2).toUpperCase() : getInitials(userEmail)
   const displayName = username || userEmail.split('@')[0]
+
+  // Any non-default list control → show a dot on the collapsed "Filtry" toggle.
+  const filtersActive = sort !== 'newest' || moodFilter !== null || favOnly || photosOnly || monthOffset !== 0
+
+  // 5 latest overall, for the clean default view.
+  const recentEntries = useMemo(
+    () => [...entries].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, RECENT_COUNT),
+    [entries],
+  )
 
   function saveUsername() {
     const trimmed = localUsername.trim()
@@ -378,7 +391,7 @@ export function Sidebar({
                 </svg>
               </div>
             </div>
-            <p style={{ fontFamily: "'Lora', serif", fontSize: 10, color: 'rgba(201,153,63,0.4)', marginTop: 7 }}>
+            <p style={{ fontFamily: "'Lora', serif", fontSize: 10, color: 'rgba(201,153,63,0.7)', marginTop: 7 }}>
               Wybrana postać będzie domyślnie otwarta w nowych wpisach.
             </p>
           </SectionCard>
@@ -438,6 +451,81 @@ export function Sidebar({
       </div>
     )
   }
+
+  const renderRow = (entry: Entry) => {
+    const sel = selectedEntryId === entry.id
+    return (
+      <button
+        key={entry.id}
+        onClick={() => onSelectEntry(entry.id)}
+        className="group w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150"
+        style={{ background: sel ? theme.selectionBg : 'transparent' }}
+        onMouseEnter={e => !sel && (e.currentTarget.style.background = `${theme.primaryDim}`)}
+        onMouseLeave={e => !sel && (e.currentTarget.style.background = 'transparent')}
+      >
+        <div className="flex items-start justify-between gap-1.5">
+          <div className="min-w-0 flex-1">
+            {/* Title — primary */}
+            <p style={{ fontFamily: "'Playfair Display', serif", color: sel ? theme.primary : '#E0B87A', fontWeight: 700 }}
+              className="text-base truncate leading-snug mb-0.5">
+              {entry.title || 'Bez tytułu'}
+            </p>
+            {/* Meta — date + mood, quiet */}
+            <p className="flex items-center gap-1 truncate"
+              style={{ fontFamily: "'Lora', serif", fontSize: 11.5, color: '#C9A87A' }}>
+              <span style={{ fontWeight: 600 }}>{relativeDate(entry.date)}</span>
+              {entry.mood ? (
+                <>
+                  <span style={{ opacity: 0.5 }}>·</span>
+                  <span style={{ fontSize: 12 }}>{MOOD_EMOJI[entry.mood]}</span>
+                  <span className="truncate">{MOOD_LABEL[entry.mood]}</span>
+                </>
+              ) : null}
+            </p>
+          </div>
+          <span
+            onClick={e => { e.stopPropagation(); onToggleFavorite(entry.id) }}
+            title={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+            aria-label={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => e.key === 'Enter' && (e.stopPropagation(), onToggleFavorite(entry.id))}
+            className={`flex-shrink-0 mt-0.5 p-0.5 rounded transition-all duration-150 cursor-pointer ${entry.isFavorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            style={{ color: entry.isFavorite ? theme.primary : 'rgba(201,153,63,0.45)', display: 'inline-flex' }}
+          >
+            <Heart size={11} fill={entry.isFavorite ? 'currentColor' : 'none'} />
+          </span>
+        </div>
+      </button>
+    )
+  }
+
+  const skeletonRows = (
+    <div className="flex flex-col gap-1.5 px-1 pt-1" aria-hidden="true">
+      {[0, 1, 2, 3, 4].map(i => (
+        <div key={i} className="px-3 py-2.5 rounded-xl shimmer">
+          <div className="h-3.5 w-2/3 rounded mb-1.5" style={{ background: 'rgba(201,153,63,0.18)' }} />
+          <div className="h-2.5 w-2/5 rounded" style={{ background: 'rgba(201,153,63,0.10)' }} />
+        </div>
+      ))}
+    </div>
+  )
+
+  const emptyWelcome = (
+    <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+      <BookOpen size={36} style={{ color: theme.primary, opacity: 0.4 }} />
+      <p style={{ fontFamily: "'Lora', serif", fontSize: 13, color: '#C9A87A' }} className="italic">
+        Twój pamiętnik czeka na pierwszy wpis.
+      </p>
+      <button
+        onClick={onNewEntry}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl active:scale-[0.98] transition-all"
+        style={{ background: theme.primary, color: '#1A0A06', fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}
+      >
+        <Feather size={13} /> Napisz pierwszy wpis
+      </button>
+    </div>
+  )
 
   return (
     <div className="flex flex-col h-full" style={{ background: theme.sidebarBg, transition: 'background 0.4s ease' }}>
@@ -506,7 +594,7 @@ export function Sidebar({
               else if (label === 'Postacie') onPostacie()
               else toast('Wkrótce dostępne', 'info')
             }}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150"
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 active:scale-[0.98]"
             onMouseEnter={e => (e.currentTarget.style.background = theme.primaryDim)}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
@@ -550,7 +638,8 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* ── Search ── */}
+      {/* ── Search (tryb „wszystkie") ── */}
+      {mode === 'all' && (
       <div className="px-4 pb-3">
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#C9A87A]" />
@@ -567,17 +656,62 @@ export function Sidebar({
           />
         </div>
       </div>
+      )}
 
-      {/* ── Spis Wspomnień ── */}
-      <div className="border-t pt-3 pb-1.5 px-4 text-center" style={{ borderColor: theme.borderColor }}>
-        <span style={{ fontFamily: "'IM Fell English SC', serif", color: theme.primary, fontSize: 13, letterSpacing: '0.08em', fontWeight: 700 }}>
-          Spis Wspomnień
-        </span>
+      {/* ── Spis Wspomnień / powrót + toggle filtrów ── */}
+      <div className="border-t pt-3 pb-2 px-3 flex items-center justify-between gap-2" style={{ borderColor: theme.borderColor }}>
+        {mode === 'all' ? (
+          <button
+            onClick={() => setMode('recent')}
+            aria-label="Wróć do ostatnich wpisów"
+            className="flex items-center gap-1 transition-colors active:scale-95"
+            style={{ fontFamily: "'Cinzel', serif", color: theme.primary, fontSize: 11, fontWeight: 700, letterSpacing: '0.04em' }}
+          >
+            <ChevronLeft size={13} /> Ostatnie
+          </button>
+        ) : (
+          <span style={{ fontFamily: "'IM Fell English SC', serif", color: theme.primary, fontSize: 13, letterSpacing: '0.08em', fontWeight: 700 }}>
+            Spis Wspomnień
+          </span>
+        )}
+        {mode === 'all' && (
+          <button
+            onClick={() => setShowFilters(v => !v)}
+            aria-expanded={showFilters}
+            aria-label="Filtry i sortowanie"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-all active:scale-95"
+            style={{
+              fontFamily: "'Cinzel', serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+              background: showFilters ? theme.primary : theme.primaryDim,
+              color: showFilters ? '#1A0A06' : theme.primary,
+              border: `1px solid ${showFilters ? theme.primary : theme.borderColor}`,
+            }}
+          >
+            <SlidersHorizontal size={11} />
+            Filtry
+            {filtersActive && !showFilters && (
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: theme.primary }} />
+            )}
+            <ChevronDown size={11} style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+          </button>
+        )}
       </div>
+
+      <AnimatePresence initial={false}>
+        {mode === 'all' && showFilters && (
+          <motion.div
+            key="sidebar-filters"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
 
       {/* ── Month navigator ── */}
       <div className={`flex items-center justify-between px-3 pb-1 transition-opacity duration-200 ${favOnly || photosOnly ? 'opacity-30 pointer-events-none' : ''}`}>
         <button onClick={() => setMonthOffset(o => o - 1)}
+          aria-label="Poprzedni miesiąc"
           className="p-1 rounded-lg transition-colors"
           style={{ color: '#C9A87A' }}
           onMouseEnter={e => (e.currentTarget.style.background = theme.primaryDim)}
@@ -597,6 +731,7 @@ export function Sidebar({
         </div>
         <button onClick={() => setMonthOffset(o => o + 1)}
           disabled={monthOffset >= 0}
+          aria-label="Następny miesiąc"
           className="p-1 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-default"
           style={{ color: '#7A5C42' }}
           onMouseEnter={e => monthOffset < 0 && (e.currentTarget.style.background = theme.primaryDim)}
@@ -696,64 +831,53 @@ export function Sidebar({
         </button>
       </div>
 
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Entries scroll ── */}
       <div className="flex-1 overflow-y-auto px-2 pb-2">
-        {filtered.length === 0 ? (
-          <p style={{ fontFamily: "'Lora', serif", color: '#C9A87A', fontSize: 12, fontWeight: 500 }}
-            className="italic text-center py-8 px-3">
-            {favOnly && photosOnly ? 'Brak ulubionych ze zdjęciem.' : favOnly ? 'Brak ulubionych wpisów.' : photosOnly ? 'Brak wpisów ze zdjęciem.' : q || moodFilter ? 'Brak wyników.' : 'Brak wpisów w tym miesiącu.'}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-0.5 mt-1">
-            {filtered.map(entry => {
-              const sel = selectedEntryId === entry.id
-              return (
+        {loading ? (
+          skeletonRows
+        ) : mode === 'recent' ? (
+          recentEntries.length === 0 ? (
+            emptyWelcome
+          ) : (
+            <div className="flex flex-col gap-0.5 mt-1">
+              {recentEntries.map(renderRow)}
+              {entries.length > RECENT_COUNT && (
                 <button
-                  key={entry.id}
-                  onClick={() => onSelectEntry(entry.id)}
-                  className="group w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150"
-                  style={{ background: sel ? theme.selectionBg : 'transparent' }}
-                  onMouseEnter={e => !sel && (e.currentTarget.style.background = `${theme.primaryDim}`)}
-                  onMouseLeave={e => !sel && (e.currentTarget.style.background = 'transparent')}
+                  onClick={() => setMode('all')}
+                  className="mx-1 mt-2 flex items-center justify-center gap-1.5 py-2 rounded-xl border transition-all active:scale-[0.98]"
+                  style={{ borderColor: theme.borderColor, color: theme.primary, fontFamily: "'Cinzel', serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = theme.primaryDim)}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <div className="flex items-start justify-between gap-1">
-                    <div className="min-w-0 flex-1">
-                      <p style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: '#C9A87A', fontWeight: 600 }} className="mb-0.5">
-                        {fmtShort(entry.date)}
-                      </p>
-                      <p style={{ fontFamily: "'Playfair Display', serif", color: sel ? theme.primary : '#E0B87A', fontWeight: 700 }}
-                        className="text-base truncate leading-snug">
-                        {entry.title || 'Bez tytułu'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-                      {entry.mood ? (
-                        <span className="text-sm">{MOOD_EMOJI[entry.mood]}</span>
-                      ) : null}
-                      <span
-                        onClick={e => { e.stopPropagation(); onToggleFavorite(entry.id) }}
-                        title={entry.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={e => e.key === 'Enter' && (e.stopPropagation(), onToggleFavorite(entry.id))}
-                        className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${entry.isFavorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                        style={{ color: entry.isFavorite ? theme.primary : 'rgba(201,153,63,0.35)', display: 'inline-flex' }}
-                      >
-                        <Heart size={11} fill={entry.isFavorite ? 'currentColor' : 'none'} />
-                      </span>
-                    </div>
-                  </div>
+                  Zobacz wszystkie ({entries.length})
+                  <ChevronRight size={13} />
                 </button>
-              )
-            })}
-          </div>
+              )}
+            </div>
+          )
+        ) : (
+          filtered.length === 0 ? (
+            <p style={{ fontFamily: "'Lora', serif", color: '#C9A87A', fontSize: 12, fontWeight: 500 }}
+              className="italic text-center py-8 px-3">
+              {favOnly && photosOnly ? 'Brak ulubionych ze zdjęciem.' : favOnly ? 'Brak ulubionych wpisów.' : photosOnly ? 'Brak wpisów ze zdjęciem.' : q || moodFilter ? 'Brak wyników.' : 'Brak wpisów w tym miesiącu.'}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-0.5 mt-1">
+              {filtered.map(renderRow)}
+            </div>
+          )
         )}
       </div>
 
       {/* ── Wyloguj ── */}
       <button
         onClick={onLogout}
-        className="flex items-center gap-2 px-5 py-3.5 border-t transition-colors"
+        aria-label="Wyloguj się"
+        className="flex items-center gap-2 px-5 py-3.5 border-t transition-all active:scale-[0.98]"
         style={{
           borderColor: theme.borderColor,
           fontFamily: "'Cinzel', serif", color: `${theme.primary}DD`, fontSize: 11, letterSpacing: '0.08em', fontWeight: 700,
