@@ -11,7 +11,6 @@ import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { HouseTheme, DEFAULT_THEME, streakLabel } from '@/lib/houseTheme'
 import { relativeDate } from '@/lib/dates'
 import { toast } from '@/lib/toast'
-import { CHARACTERS } from './PostacieOverlay'
 
 const PL_MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
   'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']
@@ -63,12 +62,10 @@ interface SidebarProps {
   userEmail: string
   username: string
   house: string
-  defaultAgent?: string
   theme?: HouseTheme
   onLogout: () => void
   onUsernameChange: (v: string) => void
   onHouseChange: (id: string) => void
-  onDefaultAgentChange?: (agentId: string) => void
   onExport: () => void
   onDeleteAll: () => void
   onPostacie: () => void
@@ -92,8 +89,8 @@ function SectionCard({ label, children }: { label: string; children: React.React
 
 export function Sidebar({
   entries, selectedEntryId, onSelectEntry, onNewEntry, onToggleFavorite,
-  userEmail, username, house, defaultAgent = 'snape', theme = DEFAULT_THEME, onLogout,
-  onUsernameChange, onHouseChange, onDefaultAgentChange, onExport, onDeleteAll, onPostacie,
+  userEmail, username, house, theme = DEFAULT_THEME, onLogout,
+  onUsernameChange, onHouseChange, onExport, onDeleteAll, onPostacie,
   loading = false,
 }: SidebarProps) {
   type Sort = 'newest' | 'oldest' | 'mood'
@@ -356,44 +353,6 @@ export function Sidebar({
                 )
               })}
             </div>
-          </SectionCard>
-
-          <SectionCard label="Rozmowa w wpisach z">
-            <div className="relative">
-              <select
-                value={defaultAgent}
-                onChange={e => onDefaultAgentChange?.(e.target.value)}
-                style={{
-                  fontFamily: "'Lora', serif",
-                  fontSize: 13,
-                  background: 'rgba(255,255,255,0.05)',
-                  color: defaultAgent ? '#D4A96A' : 'rgba(191,168,130,0.5)',
-                  borderColor: 'rgba(201,153,63,0.2)',
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                }}
-                className="w-full px-3 py-2.5 pr-9 rounded-xl border text-[#D4A96A] outline-none focus:border-[#C9993F]/50 transition-colors cursor-pointer"
-              >
-                {CHARACTERS.filter(c => !c.locked).map(c => (
-                  <option key={c.id} value={c.id} style={{ background: '#1A1008', color: '#D4A96A' }}>
-                    {c.name}
-                  </option>
-                ))}
-                {CHARACTERS.filter(c => c.locked).map(c => (
-                  <option key={c.id} value={c.id} disabled style={{ background: '#1A1008', color: 'rgba(201,153,63,0.35)' }}>
-                    🔒 {c.name}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                <svg width="11" height="7" viewBox="0 0 12 8" fill="none">
-                  <path d="M1 1l5 5 5-5" stroke="rgba(201,153,63,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-            </div>
-            <p style={{ fontFamily: "'Lora', serif", fontSize: 10, color: 'rgba(201,153,63,0.7)', marginTop: 7 }}>
-              Wybrana postać będzie domyślnie otwarta w nowych wpisach.
-            </p>
           </SectionCard>
 
           <SectionCard label="Docs & MCP">

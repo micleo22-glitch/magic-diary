@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { getChatMessages, saveChatMessage } from '@/lib/storage'
 import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
 import type { Character } from './PostacieOverlay'
+import type { Entry } from '@/types/entry'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -31,20 +32,22 @@ function getStandaloneOpening(characterId: string): string {
   return 'Słucham.'
 }
 
-function charChatId(characterId: string): string {
-  return `__char__${characterId}`
+function charChatId(characterId: string, entryId?: string): string {
+  return entryId ? `__char__${characterId}__${entryId}` : `__char__${characterId}`
 }
 
 interface CharacterChatOverlayProps {
   character: Character
   onBack: () => void
   theme?: HouseTheme
+  entry?: Entry
 }
 
 export function CharacterChatOverlay({
   character,
   onBack,
   theme = DEFAULT_THEME,
+  entry,
 }: CharacterChatOverlayProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
@@ -112,7 +115,7 @@ export function CharacterChatOverlay({
 
   useEffect(() => {
     let cancelled = false
-    const chatId = charChatId(character.id)
+    const chatId = charChatId(character.id, entry?.id)
     getChatMessages(chatId).then(history => {
       if (cancelled) return
       if (history.length > 0) {
@@ -129,12 +132,12 @@ export function CharacterChatOverlay({
       stopTypewriter()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [character.id])
+  }, [character.id, entry?.id])
 
   const send = async () => {
     const text = input.trim()
     if (!text || loading) return
-    const chatId = charChatId(character.id)
+    const chatId = charChatId(character.id, entry?.id)
     setInput('')
     const updated = [...messages, { role: 'user' as const, text }]
     setMessages(updated)
@@ -145,7 +148,12 @@ export function CharacterChatOverlay({
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updated, teacher: character.id, accessToken }),
+        body: JSON.stringify({
+          messages: updated,
+          teacher: character.id,
+          accessToken,
+          ...(entry && { entry: { title: entry.title, content: entry.content, mood: entry.mood, date: entry.date } }),
+        }),
       })
 
       if (!res.ok || !res.body) {
@@ -180,7 +188,7 @@ export function CharacterChatOverlay({
     } catch {
       const errText = 'Coś poszło nie tak. Spróbuj ponownie.'
       setMessages(prev => [...prev, { role: 'assistant', text: errText }])
-      saveChatMessage(charChatId(character.id), 'assistant', errText)
+      saveChatMessage(charChatId(character.id, entry?.id), 'assistant', errText)
     } finally {
       setLoading(false)
     }

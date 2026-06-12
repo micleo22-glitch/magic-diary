@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import {
   X, User, GraduationCap, ShoppingBag, Settings, LogOut,
-  Download, Trash2, Mail, KeyRound, Star, BookOpen, Feather,
+  Download, Trash2, Mail, KeyRound, Star, BookOpen, Feather, BookMarked,
 } from 'lucide-react'
 import { SplashScreen } from './SplashScreen'
 import { EntryEditor } from './EntryEditor'
@@ -15,7 +15,7 @@ import { Sidebar } from './Sidebar'
 import { AuthScreen } from './AuthScreen'
 import { ToastContainer } from './Toast'
 import { Onboarding } from './Onboarding'
-import { PostacieOverlay, CHARACTERS } from './PostacieOverlay'
+import { PostacieOverlay } from './PostacieOverlay'
 import { CharacterChatOverlay } from './CharacterChatOverlay'
 import type { Character } from './PostacieOverlay'
 import { getEntries, deleteEntry } from '@/lib/storage'
@@ -165,20 +165,19 @@ function AppInner() {
   const [username, setUsername] = useState('')
   const [usernameInput, setUsernameInput] = useState('')
   const [house, setHouse] = useState('')
-  const [defaultAgent, setDefaultAgent] = useState('snape')
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
   const [deletingAll, setDeletingAll] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [profileChecked, setProfileChecked] = useState(false)
   const [entriesLoading, setEntriesLoading] = useState(true)
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
+  const [chatEntry, setChatEntry] = useState<Entry | null>(null)
 
   // First paint: pre-fill from cache only (server metadata is the source of truth).
   useEffect(() => {
     const cached = getCachedProfile()
     if (cached.username) { setUsername(cached.username); setUsernameInput(cached.username) }
     if (cached.house) setHouse(cached.house)
-    if (cached.defaultAgent) setDefaultAgent(cached.defaultAgent)
     setFavoriteIds(getFavoriteIds())
   }, [])
 
@@ -191,20 +190,18 @@ function AppInner() {
     const name  = server.username     || cached.username     || ''
     const h     = server.house        || cached.house        || ''
     const done  = server.onboardingDone || !!cached.onboardingDone
-    const agent = server.defaultAgent || cached.defaultAgent || 'snape'
 
     // Authoritative — set unconditionally so nothing lingers from a previous account.
     setUsername(name); setUsernameInput(name)
     setHouse(h)
-    setDefaultAgent(agent)
     setShowOnboarding(!done)
     setProfileChecked(true)
 
     // One-time migration: backfill legacy localStorage-only profiles into the account.
     if (done && !server.onboardingDone) {
-      saveProfile({ username: name, house: h, onboardingDone: true, defaultAgent: agent })
+      saveProfile({ username: name, house: h, onboardingDone: true })
     } else {
-      cacheProfile({ username: name, house: h, onboardingDone: done, defaultAgent: agent })
+      cacheProfile({ username: name, house: h, onboardingDone: done })
     }
   }, [])
 
@@ -227,12 +224,6 @@ function AppInner() {
     const ok = await saveProfile({ house: id })
     const h = HOUSES.find(h => h.id === id)
     toast(ok ? `Dom ${h?.name} wybrany` : 'Nie udało się zapisać domu', ok ? 'success' : 'error')
-  }
-
-  async function selectDefaultAgent(agentId: string) {
-    setDefaultAgent(agentId)
-    const ok = await saveProfile({ defaultAgent: agentId })
-    if (!ok) toast('Nie udało się zapisać agenta', 'error')
   }
 
   const reload = useCallback(async () => {
@@ -390,14 +381,17 @@ function AppInner() {
           onDelete={handleDeleted}
           onBack={() => setView('entries')}
           onToggleFavorite={() => handleToggleFavorite(selectedEntry.id)}
+          onChatWithCharacter={() => { setChatEntry(selectedEntry); setMobilePanel('postacie') }}
           theme={houseTheme}
-          teacher={defaultAgent}
         />
       )
     }
     return (
       <div className="parchment-bg h-full flex flex-col items-center justify-center gap-5 px-6 text-center">
-        <Feather size={52} style={{ color: '#C9993F', opacity: 0.28 }} strokeWidth={1.5} />
+        <div className="flex items-end gap-4" style={{ opacity: 0.28 }}>
+          <BookMarked size={44} style={{ color: '#C9993F' }} strokeWidth={1.3} />
+          <Feather size={52} style={{ color: '#C9993F' }} strokeWidth={1.3} />
+        </div>
         <p style={{ fontFamily: "'Playfair Display', serif", color: 'rgba(122,92,66,0.9)', fontSize: 18 }}
           className="italic">
           {entries.length === 0
@@ -493,45 +487,6 @@ function AppInner() {
               )
             })}
           </div>
-        </SectionCard>
-
-        {/* Rozmowa w wpisach z */}
-        <SectionCard label="Rozmowa w wpisach z">
-          <div className="relative">
-            <select
-              value={defaultAgent}
-              onChange={e => selectDefaultAgent(e.target.value)}
-              style={{
-                fontFamily: "'Lora', serif",
-                fontSize: 14,
-                background: 'rgba(255,255,255,0.05)',
-                color: defaultAgent ? '#D4A96A' : 'rgba(191,168,130,0.5)',
-                borderColor: 'rgba(201,153,63,0.2)',
-                appearance: 'none',
-                WebkitAppearance: 'none',
-              }}
-              className="w-full px-4 py-3 pr-10 rounded-xl border text-[#D4A96A] outline-none focus:border-[#C9993F]/50 transition-colors cursor-pointer"
-            >
-              {CHARACTERS.filter(c => !c.locked).map(c => (
-                <option key={c.id} value={c.id} style={{ background: '#1A1008', color: '#D4A96A' }}>
-                  {c.name}
-                </option>
-              ))}
-              {CHARACTERS.filter(c => c.locked).map(c => (
-                <option key={c.id} value={c.id} disabled style={{ background: '#1A1008', color: 'rgba(201,153,63,0.35)' }}>
-                  🔒 {c.name}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-              <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
-                <path d="M1 1l5 5 5-5" stroke="rgba(201,153,63,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-          <p style={{ fontFamily: "'Lora', serif", fontSize: 11, color: 'rgba(201,153,63,0.7)', marginTop: 8 }}>
-            Wybrana postać będzie domyślnie otwarta w nowych wpisach.
-          </p>
         </SectionCard>
 
         {/* Docs & MCP */}
@@ -834,8 +789,9 @@ function AppInner() {
         {selectedCharacter && (
           <CharacterChatOverlay
             character={selectedCharacter}
-            onBack={() => setSelectedCharacter(null)}
+            onBack={() => { setSelectedCharacter(null); setChatEntry(null) }}
             theme={houseTheme}
+            entry={chatEntry ?? undefined}
           />
         )}
       </AnimatePresence>
@@ -851,12 +807,10 @@ function AppInner() {
           userEmail={session.user.email ?? ''}
           username={username}
           house={house}
-          defaultAgent={defaultAgent}
           theme={houseTheme}
           onLogout={handleLogout}
           onUsernameChange={persistUsername}
           onHouseChange={selectMobileHouse}
-          onDefaultAgentChange={selectDefaultAgent}
           onExport={() => { exportEntries(entries); toast('Plik pobrany', 'success') }}
           onDeleteAll={handleDeleteAll}
           onPostacie={() => setMobilePanel('postacie')}

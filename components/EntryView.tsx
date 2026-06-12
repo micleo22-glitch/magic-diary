@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useIsPresent } from 'framer-motion'
-import { ArrowLeft, Pencil, Trash2, AlertTriangle, Heart, X, ZoomIn, ZoomOut } from 'lucide-react'
+import { ArrowLeft, Feather, MessageCircle, Trash2, AlertTriangle, Heart, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { deleteEntry } from '@/lib/storage'
 import { getSignedUrls } from '@/lib/entry-photos'
-import { AgentChat } from './AgentChat'
 import { toast } from '@/lib/toast'
 import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
 import DOMPurify from 'isomorphic-dompurify'
@@ -219,11 +218,11 @@ interface EntryViewProps {
   onDelete: () => void
   onBack: () => void
   onToggleFavorite?: () => void
+  onChatWithCharacter?: () => void
   theme?: HouseTheme
-  teacher?: string
 }
 
-export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, theme = DEFAULT_THEME, teacher }: EntryViewProps) {
+export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, onChatWithCharacter, theme = DEFAULT_THEME }: EntryViewProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [photoUrls, setPhotoUrls] = useState<string[]>([])
@@ -284,7 +283,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
             style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[#C9993F] border border-[#C9993F]/35 rounded-xl hover:bg-[#C9993F]/10 transition-all tracking-wide"
           >
-            <Pencil size={13} />
+            <Feather size={13} />
             Edytuj
           </button>
           <button
@@ -367,7 +366,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
         <div className="flex items-center gap-3 mb-8">
           <div className="h-px flex-1"
             style={{ background: 'linear-gradient(to right, transparent, rgba(201,153,63,0.35))' }} />
-          <span style={{ color: 'rgba(201,153,63,0.6)', fontSize: 20 }}>❧</span>
+          <Feather size={14} style={{ color: 'rgba(201,153,63,0.55)', flexShrink: 0 }} strokeWidth={1.5} />
           <div className="h-px flex-1"
             style={{ background: 'linear-gradient(to left, transparent, rgba(201,153,63,0.35))' }} />
         </div>
@@ -393,23 +392,35 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, t
           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(entry.content) }}
         />
 
-        {/* Watermark feather */}
-        <div className="mt-16 flex justify-center" style={{ opacity: 0.12 }}>
-          <svg width="64" height="80" viewBox="0 0 64 80" fill="none">
-            <path d="M32 4 C20 12, 6 24, 4 44 C6 60, 18 70, 32 72 C46 70, 58 60, 60 44 C58 24, 44 12, 32 4Z"
-              stroke="#C9993F" strokeWidth="1.5" fill="none" />
-            <path d="M32 4 L32 72" stroke="#C9993F" strokeWidth="0.8" />
-            <path d="M32 20 Q44 30, 55 35" stroke="#C9993F" strokeWidth="0.6" fill="none" />
-            <path d="M32 32 Q44 40, 52 46" stroke="#C9993F" strokeWidth="0.6" fill="none" />
-            <path d="M32 44 Q42 50, 48 56" stroke="#C9993F" strokeWidth="0.6" fill="none" />
-            <path d="M32 20 Q20 30, 9 35" stroke="#C9993F" strokeWidth="0.6" fill="none" />
-            <path d="M32 32 Q20 40, 12 46" stroke="#C9993F" strokeWidth="0.6" fill="none" />
-            <path d="M32 44 Q22 50, 16 56" stroke="#C9993F" strokeWidth="0.6" fill="none" />
-          </svg>
+        {/* Chat with character button */}
+        {onChatWithCharacter && (
+          <div className="mt-12 flex justify-center">
+            <button
+              onClick={onChatWithCharacter}
+              className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                color: 'rgba(201,153,63,0.85)',
+                borderColor: 'rgba(201,153,63,0.25)',
+                background: 'rgba(201,153,63,0.06)',
+              }}
+            >
+              <MessageCircle size={14} style={{ opacity: 0.8 }} />
+              Pogadaj o tym z postacią
+            </button>
+          </div>
+        )}
+
+        {/* Watermark */}
+        <div className="mt-10 flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-bg.png" alt="" aria-hidden="true"
+            style={{ width: 120, height: 120, objectFit: 'contain', opacity: 0.12, pointerEvents: 'none', userSelect: 'none' }} />
         </div>
       </div>
-
-      <AgentChat entry={entry} theme={theme} teacher={teacher} />
 
       {/* Lightbox */}
       <AnimatePresence>

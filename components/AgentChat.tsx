@@ -7,6 +7,11 @@ import { supabase } from '@/lib/supabase'
 import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
 import { getChatMessages, saveChatMessage } from '@/lib/storage'
 
+const AGENT_LABELS: Record<string, { header: string; placeholder: string }> = {
+  snape: { header: 'SEVERUS SNAPE', placeholder: "Napisz do Snape'a..." },
+  hedwig: { header: 'HEDWIGA', placeholder: 'Napisz do Hedwigi...' },
+}
+
 interface Message {
   role: 'user' | 'assistant'
   text: string
@@ -290,7 +295,7 @@ export function AgentChat({ entry, theme = DEFAULT_THEME, teacher = 'snape' }: A
             letterSpacing: '0.15em',
           }}
         >
-          SEVERUS SNAPE
+          {(AGENT_LABELS[teacher] ?? AGENT_LABELS.snape).header}
         </span>
       </div>
 
@@ -368,7 +373,7 @@ export function AgentChat({ entry, theme = DEFAULT_THEME, teacher = 'snape' }: A
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder="Napisz do Snape'a..."
+          placeholder={(AGENT_LABELS[teacher] ?? AGENT_LABELS.snape).placeholder}
           style={{
             flex: 1,
             background: 'rgba(0,0,0,0.25)',
