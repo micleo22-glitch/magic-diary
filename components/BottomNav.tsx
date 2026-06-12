@@ -21,22 +21,25 @@ export function BottomNav({
 
   return (
     <nav
-      className="flex items-stretch border-t border-[rgba(201,169,110,0.08)]"
+      className="flex items-stretch border-t"
       style={{
-        background: theme.navBg,
+        background: theme.navGlass,
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
+        borderColor: theme.borderColor,
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         transition: 'background 0.4s ease',
       }}
     >
       <NavBtn
-        icon={<Feather size={22} />}
+        icon={<Feather size={21} />}
         label="Nowy Wpis"
         active={isEditor}
         onClick={onNewEntry}
         theme={theme}
       />
       <NavBtn
-        icon={<BookOpen size={22} />}
+        icon={<BookOpen size={21} />}
         label="Wspomnienia"
         active={isList}
         onClick={onEntries}
@@ -44,7 +47,7 @@ export function BottomNav({
       />
 
       <NavBtn
-        icon={<Menu size={22} />}
+        icon={<Menu size={21} />}
         label="Menu"
         active={menuOpen}
         onClick={onMenu}
@@ -66,14 +69,23 @@ function NavBtn({ icon, label, active, onClick, theme }: {
       onClick={onClick}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
-      className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl transition-all duration-200 active:scale-95 active:bg-[rgba(201,153,63,0.08)]"
+      className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-all duration-200 active:scale-95"
       style={{
-        color: active ? theme.primary : 'rgba(200,170,120,0.9)',
+        color: active ? theme.primary : 'rgba(200,170,120,0.85)',
       }}
     >
-      {icon}
       <span
-        style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
+        className="flex items-center justify-center px-5 py-1 rounded-full transition-all duration-200"
+        style={{
+          background: active ? theme.accentDim : 'transparent',
+          boxShadow: active ? `0 0 14px ${theme.primaryGlow}` : 'none',
+          color: active ? theme.accent : 'inherit',
+        }}
+      >
+        {icon}
+      </span>
+      <span
+        style={{ fontFamily: "'Cinzel', serif", fontSize: 10.5, fontWeight: 700 }}
         className="uppercase tracking-widest"
       >
         {label}

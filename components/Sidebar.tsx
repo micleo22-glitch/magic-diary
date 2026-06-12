@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
-import { HouseTheme, DEFAULT_THEME, streakLabel } from '@/lib/houseTheme'
+import { HouseTheme, DEFAULT_THEME, streakLabel, HOUSES } from '@/lib/houseTheme'
 import { relativeDate } from '@/lib/dates'
 import { toast } from '@/lib/toast'
 
@@ -38,13 +38,6 @@ function calcStreak(entries: Entry[]): number {
   }
   return streak
 }
-
-const HOUSES = [
-  { id: 'gryffindor', name: 'Gryffindor', emoji: '🦁', color: '#C41E3A', bg: 'rgba(196,30,58,0.15)' },
-  { id: 'slytherin',  name: 'Slytherin',  emoji: '🐍', color: '#2EAD6E', bg: 'rgba(46,173,110,0.12)' },
-  { id: 'hufflepuff', name: 'Hufflepuff', emoji: '🦡', color: '#D4A017', bg: 'rgba(212,160,23,0.15)' },
-  { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🐦‍⬛', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)' },
-]
 
 const NAV_ITEMS = [
   { icon: User,          label: 'Profil' },
@@ -328,7 +321,7 @@ export function Sidebar({
             />
             <button onClick={saveUsername}
               className="w-full py-2.5 rounded-xl font-semibold active:scale-[0.98] transition-all"
-              style={{ background: theme.primary, color: '#1A0A06', fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.08em' }}>
+              style={{ background: theme.gradient, color: '#1A0A06', fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: '0.08em', boxShadow: `0 2px 10px ${theme.primaryGlow}` }}>
               Zapisz
             </button>
           </SectionCard>
@@ -493,18 +486,19 @@ export function Sidebar({
       {activeNav === 'Ustawienia' && <SettingsOverlay />}
 
       {/* ── User profile ── */}
-      <div className="px-4 pt-5 pb-4 border-b" style={{ borderColor: theme.borderColor }}>
-        <div className="flex items-center gap-3">
-          <div style={{
+      <div className="starfield px-4 pt-5 pb-4 border-b" style={{ borderColor: theme.borderColor }}>
+        <div className="relative flex items-center gap-3">
+          <div className="glow-pulse" style={{
             width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
             background: houseData
-              ? `linear-gradient(135deg, ${houseData.color}99 0%, ${houseData.color}44 100%)`
-              : `linear-gradient(135deg, ${theme.primary}99 0%, ${theme.primary}44 100%)`,
+              ? `linear-gradient(135deg, ${houseData.color}AA 0%, ${houseData.color}33 100%)`
+              : `linear-gradient(135deg, ${theme.primary}AA 0%, ${theme.primary}33 100%)`,
             border: `2px solid ${houseData?.color ?? theme.primary}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: "'Cinzel', serif", fontSize: 15, color: '#F5EDD8', fontWeight: 600,
-            boxShadow: `0 0 12px ${theme.primaryGlow}`,
+            boxShadow: `0 0 16px ${theme.primaryGlow}`,
             transition: 'all 0.4s ease',
+            ['--glow-color' as string]: theme.primaryGlow,
           }}>
             {initials}
           </div>
@@ -583,14 +577,14 @@ export function Sidebar({
           onClick={onNewEntry}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl active:scale-[0.98] transition-all shadow-md"
           style={{
-            background: theme.primary,
+            background: theme.gradient,
             fontFamily: "'Lora', Georgia, serif", fontSize: 14, fontWeight: 700,
             color: '#1A0A06',
-            boxShadow: `0 4px 14px ${theme.primaryGlow}`,
+            boxShadow: `0 4px 18px ${theme.primaryGlow}`,
             transition: 'all 0.4s ease',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = theme.primaryHover)}
-          onMouseLeave={e => (e.currentTarget.style.background = theme.primary)}
+          onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.08)')}
+          onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
         >
           <Feather size={14} />
           Nowy Wpis

@@ -574,10 +574,16 @@ export function EntryEditor({ entry, onSave, onCancel }: EntryEditorProps) {
           className={[
             'w-full py-3.5 rounded-2xl transition-all duration-200',
             canSave && !saving
-              ? 'bg-[#C9993F] text-white shadow-md hover:bg-[#D4A84A] active:scale-[0.98]'
+              ? 'text-[#1A0A06] hover:brightness-110 active:scale-[0.98]'
               : 'bg-[#C9993F]/20 text-[#7A5C42] cursor-not-allowed',
           ].join(' ')}
-          style={{ fontFamily: "'Lora', Georgia, serif", fontSize: 16, fontWeight: 700 }}
+          style={{
+            fontFamily: "'Lora', Georgia, serif", fontSize: 16, fontWeight: 700,
+            ...(canSave && !saving ? {
+              background: 'linear-gradient(135deg, #F0C96A 0%, #C9993F 55%, #A87928 100%)',
+              boxShadow: '0 4px 18px rgba(201,153,63,0.35)',
+            } : {}),
+          }}
         >
           {saving ? 'Zapisywanie...' : entry ? 'Zapisz zmiany' : 'Zapisz wpis'}
         </button>

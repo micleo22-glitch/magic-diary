@@ -293,10 +293,12 @@ export function CharacterChatOverlay({
                 fontSize: 14,
                 lineHeight: 1.65,
                 padding: '10px 14px',
-                borderRadius: m.role === 'user' ? '14px 14px 3px 14px' : '14px 14px 14px 3px',
-                background: m.role === 'user' ? theme.primary : 'rgba(255,255,255,0.05)',
+                borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                background: m.role === 'user' ? theme.gradient : 'rgba(255,255,255,0.05)',
                 color: m.role === 'user' ? '#1A0A06' : '#EAD9B8',
                 border: m.role === 'user' ? 'none' : `1px solid ${theme.borderColor}`,
+                boxShadow: m.role === 'user' ? `0 2px 12px ${theme.primaryGlow}` : 'none',
+                backdropFilter: m.role === 'user' ? 'none' : 'blur(8px)',
               }}
             >
               {m.text}

@@ -33,9 +33,9 @@ export function ToastContainer() {
   }
 
   const colors = {
-    success: { bg: 'rgba(46,173,110,0.15)', border: 'rgba(46,173,110,0.4)', text: '#2EAD6E' },
-    error:   { bg: 'rgba(180,30,30,0.15)',   border: 'rgba(180,30,30,0.4)',   text: '#E05555' },
-    info:    { bg: 'rgba(201,153,63,0.15)',  border: 'rgba(201,153,63,0.4)',  text: '#C9993F' },
+    success: { bg: 'rgba(12,26,18,0.88)', border: 'rgba(46,173,110,0.45)', text: '#4FD695' },
+    error:   { bg: 'rgba(28,10,8,0.88)',  border: 'rgba(224,85,85,0.45)',  text: '#F07B7B' },
+    info:    { bg: 'rgba(26,16,6,0.88)',  border: 'rgba(201,153,63,0.45)', text: '#E8C87E' },
   }
 
   return (

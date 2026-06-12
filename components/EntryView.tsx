@@ -347,7 +347,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, o
 
         {/* Title */}
         <h1 style={{ fontFamily: "'Playfair Display', serif" }}
-          className="text-[#C9993F] text-3xl font-bold text-center mb-4 leading-snug">
+          className="text-gradient-gold text-3xl font-bold text-center mb-4 leading-snug">
           {entry.title || 'Bez tytułu'}
         </h1>
 
@@ -397,19 +397,18 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, o
           <div className="mt-12 flex justify-center">
             <button
               onClick={onChatWithCharacter}
-              className="flex items-center gap-2.5 px-6 py-3 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="flex items-center gap-2.5 px-6 py-3 rounded-2xl transition-all hover:scale-[1.02] hover:brightness-110 active:scale-[0.98]"
               style={{
                 fontFamily: "'Cinzel', serif",
                 fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: '0.08em',
                 color: '#1A0A06',
-                borderColor: 'rgba(201,153,63,0.5)',
-                background: 'rgba(201,153,63,0.22)',
-                boxShadow: '0 1px 6px rgba(201,153,63,0.15)',
+                background: theme.gradient,
+                boxShadow: `0 4px 16px ${theme.primaryGlow}`,
               }}
             >
-              <MessageCircle size={14} style={{ color: '#C9993F' }} />
+              <MessageCircle size={14} style={{ color: '#1A0A06' }} />
               Pogadaj o tym z postacią
             </button>
           </div>
