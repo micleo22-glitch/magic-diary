@@ -24,7 +24,7 @@ import { supabase } from '@/lib/supabase'
 import { profileFromSession, getCachedProfile, cacheProfile, saveProfile, clearCachedProfile } from '@/lib/profile'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { toast } from '@/lib/toast'
-import { getHouseTheme, streakLabel, HOUSES } from '@/lib/houseTheme'
+import { getHouseTheme, streakLabel } from '@/lib/houseTheme'
 import type { Session } from '@supabase/supabase-js'
 
 type View = 'splash' | 'new' | 'entries' | 'view' | 'edit'
@@ -42,6 +42,13 @@ const MENU_ITEMS = [
   { icon: GraduationCap,  label: 'Postacie' },
   { icon: ShoppingBag,    label: 'Sklep' },
   { icon: Settings,       label: 'Ustawienia' },
+]
+
+const HOUSES = [
+  { id: 'gryffindor', name: 'Gryffindor', emoji: '🦁', color: '#C41E3A', bg: 'rgba(196,30,58,0.15)' },
+  { id: 'slytherin',  name: 'Slytherin',  emoji: '🐍', color: '#2EAD6E', bg: 'rgba(46,173,110,0.12)' },
+  { id: 'hufflepuff', name: 'Hufflepuff', emoji: '🦡', color: '#ECB939', bg: 'rgba(236,185,57,0.15)' },
+  { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🐦‍⬛', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)' },
 ]
 
 // ─── stat helpers ────────────────────────────────────────────
@@ -381,7 +388,7 @@ function AppInner() {
     }
     return (
       <div className="parchment-bg h-full flex flex-col items-center justify-center gap-5 px-6 text-center">
-        <div className="float-y flex items-end gap-4" style={{ opacity: 0.3 }}>
+        <div className="flex items-end gap-4" style={{ opacity: 0.28 }}>
           <BookMarked size={44} style={{ color: '#C9993F' }} strokeWidth={1.3} />
           <Feather size={52} style={{ color: '#C9993F' }} strokeWidth={1.3} />
         </div>
@@ -393,11 +400,8 @@ function AppInner() {
         </p>
         <button
           onClick={handleNew}
-          style={{
-            fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-            background: houseTheme.gradient, boxShadow: `0 4px 18px ${houseTheme.primaryGlow}`,
-          }}
-          className="flex items-center gap-2 px-6 py-3 text-[#1A0A06] rounded-xl hover:brightness-110 active:scale-[0.98] transition-all"
+          style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}
+          className="flex items-center gap-2 px-6 py-3 bg-[#C9993F] text-[#1A0A06] rounded-xl hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
         >
           <Feather size={15} />
           {entries.length === 0 ? 'Napisz pierwszy wpis' : 'Nowy wpis'}
@@ -453,8 +457,8 @@ function AppInner() {
           />
           <button
             onClick={saveMobileUsername}
-            style={{ fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.08em', background: houseTheme.gradient, boxShadow: `0 2px 10px ${houseTheme.primaryGlow}` }}
-            className="w-full py-3 rounded-xl text-[#1A0A06] font-semibold hover:brightness-110 active:scale-[0.98] transition-all"
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: '0.08em' }}
+            className="w-full py-3 rounded-xl bg-[#C9993F] text-[#1A0A06] font-semibold hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
           >
             Zapisz
           </button>
@@ -646,7 +650,7 @@ function AppInner() {
             />
             <motion.div
               className="fixed inset-x-0 bottom-0 z-50 md:hidden rounded-t-3xl overflow-hidden"
-              style={{ background: houseTheme.sidebarBg, borderTop: `1px solid ${houseTheme.borderColor}`, maxHeight: '85dvh', transition: 'background 0.4s ease' }}
+              style={{ background: houseTheme.navBg, borderTop: `1px solid ${houseTheme.borderColor}`, maxHeight: '85dvh', transition: 'background 0.4s ease' }}
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
             >
@@ -824,16 +828,15 @@ function AppInner() {
       {/* ===== MOBILE: Single panel views ===== */}
       <div className="flex md:hidden flex-1 flex-col overflow-hidden">
         <div
-          className="starfield flex-shrink-0 flex items-center justify-center px-4 py-3 border-b"
-          style={{ background: houseTheme.sidebarBg, borderColor: houseTheme.borderColor, transition: 'background 0.4s ease' }}
+          className="flex-shrink-0 flex items-center justify-center px-4 py-3 border-b"
+          style={{ background: houseTheme.navBg, borderColor: houseTheme.borderColor, transition: 'background 0.4s ease' }}
         >
           {/* Logo centered */}
-          <div className="relative flex items-center gap-3">
+          <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="Magic Diary" width={32} height={32}
-              className="glow-pulse"
-              style={{ objectFit: 'contain', ['--glow-color' as string]: houseTheme.primaryGlow }} />
-            <span className="text-gradient-gold" style={{ fontFamily: "'IM Fell English SC', serif", fontSize: 19, letterSpacing: '0.1em' }}>
+              style={{ objectFit: 'contain', filter: `drop-shadow(0 0 10px ${houseTheme.primaryGlow})` }} />
+            <span style={{ fontFamily: "'IM Fell English SC', serif", color: houseTheme.primary, fontSize: 19, letterSpacing: '0.1em', transition: 'color 0.4s ease' }}>
               Magic Diary
             </span>
           </div>

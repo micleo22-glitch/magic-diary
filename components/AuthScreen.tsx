@@ -76,20 +76,15 @@ export function AuthScreen() {
 
   return (
     <div
-      className="starfield min-h-screen flex flex-col items-center justify-center px-4"
-      style={{
-        background:
-          'radial-gradient(ellipse 80% 50% at 20% -10%, rgba(201,153,63,0.16) 0%, transparent 60%), ' +
-          'radial-gradient(ellipse 70% 45% at 105% 110%, rgba(139,90,43,0.22) 0%, transparent 65%), ' +
-          'linear-gradient(180deg, #221008 0%, #140703 100%)',
-      }}
+      className="min-h-screen flex flex-col items-center justify-center px-4"
+      style={{ background: '#1A0A06' }}
     >
       {/* Logo */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative flex flex-col items-center gap-3 mb-10"
+        className="flex flex-col items-center gap-3 mb-10"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -97,13 +92,12 @@ export function AuthScreen() {
           alt="Magic Diary"
           width={64}
           height={64}
-          className="glow-pulse"
-          style={{ ['--glow-color' as string]: 'rgba(201,153,63,0.55)' }}
+          style={{ filter: 'drop-shadow(0 0 18px rgba(201,153,63,0.55))' }}
         />
         <h1
-          className="text-gradient-gold"
           style={{
             fontFamily: "'IM Fell English SC', serif",
+            color: '#C9993F',
             fontSize: 26,
             letterSpacing: '0.12em',
           }}
@@ -121,11 +115,8 @@ export function AuthScreen() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="relative w-full max-w-sm rounded-3xl p-7"
-        style={{
-          background: 'linear-gradient(180deg, #F8F1DE 0%, #F0E6CC 100%)',
-          boxShadow: '0 18px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,153,63,0.35), 0 0 40px rgba(201,153,63,0.12)',
-        }}
+        className="w-full max-w-sm rounded-2xl p-7"
+        style={{ background: '#F5EDD8', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }}
       >
         <h2
           className="mb-6 text-center"
@@ -208,17 +199,14 @@ export function AuthScreen() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-xl transition-all duration-200 mt-1 hover:brightness-110 active:scale-[0.99]"
+            className="w-full py-3.5 rounded-xl transition-all duration-200 mt-1"
             style={{
-              background: loading
-                ? 'rgba(201,153,63,0.4)'
-                : 'linear-gradient(135deg, #F0C96A 0%, #C9993F 55%, #A87928 100%)',
-              color: loading ? '#7A5C42' : '#1A0A06',
+              background: loading ? 'rgba(201,153,63,0.4)' : '#C9993F',
+              color: loading ? '#7A5C42' : 'white',
               fontFamily: "'Lora', serif",
               fontSize: 15,
               fontWeight: 700,
               cursor: loading ? 'not-allowed' : 'pointer',
-              boxShadow: loading ? 'none' : '0 4px 18px rgba(201,153,63,0.35)',
             }}
           >
             {loading ? 'Chwila...' : title}

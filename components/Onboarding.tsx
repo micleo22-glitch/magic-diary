@@ -3,7 +3,13 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, Feather } from 'lucide-react'
-import { HOUSES } from '@/lib/houseTheme'
+
+const HOUSES = [
+  { id: 'gryffindor', name: 'Gryffindor', emoji: '🦁', color: '#C41E3A', bg: 'rgba(196,30,58,0.15)', desc: 'Odwaga i szlachetność' },
+  { id: 'slytherin',  name: 'Slytherin',  emoji: '🐍', color: '#2EAD6E', bg: 'rgba(46,173,110,0.12)',  desc: 'Ambicja i przebiegłość' },
+  { id: 'hufflepuff', name: 'Hufflepuff', emoji: '🦡', color: '#ECB939', bg: 'rgba(236,185,57,0.15)', desc: 'Cierpliwość i lojalność' },
+  { id: 'ravenclaw',  name: 'Ravenclaw',  emoji: '🐦‍⬛', color: '#5B8DD9', bg: 'rgba(91,141,217,0.15)', desc: 'Mądrość i pomysłowość' },
+]
 
 interface OnboardingProps {
   onDone: (username: string, house: string) => void
@@ -49,8 +55,6 @@ export function Onboarding({ onDone }: OnboardingProps) {
               style={{
                 borderColor: sel ? h.color : 'rgba(201,153,63,0.12)',
                 background: sel ? h.bg : 'rgba(255,255,255,0.02)',
-                boxShadow: sel ? `0 0 24px ${h.color}55` : 'none',
-                transform: sel ? 'scale(1.03)' : 'scale(1)',
               }}
             >
               <span style={{ fontSize: 32 }}>{h.emoji}</span>
@@ -182,13 +186,8 @@ export function Onboarding({ onDone }: OnboardingProps) {
   ]
 
   return (
-    <div className="starfield fixed inset-0 z-[80] flex items-center justify-center px-6"
-      style={{
-        background:
-          'radial-gradient(ellipse 80% 50% at 15% -10%, rgba(201,153,63,0.14) 0%, transparent 60%), ' +
-          'radial-gradient(ellipse 70% 45% at 105% 110%, rgba(139,90,43,0.20) 0%, transparent 65%), ' +
-          'linear-gradient(180deg, #1A0A06 0%, #2C0F0A 100%)',
-      }}>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center px-6"
+      style={{ background: 'linear-gradient(180deg, #1A0A06 0%, #2C0F0A 100%)' }}>
       {/* Decorative particles */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {[...Array(12)].map((_, i) => (

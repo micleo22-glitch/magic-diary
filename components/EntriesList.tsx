@@ -158,12 +158,8 @@ export function EntriesList({
       </div>
       <button
         onClick={onNewEntry}
-        style={{
-          fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-          background: 'linear-gradient(135deg, #F0C96A 0%, #C9993F 55%, #A87928 100%)',
-          boxShadow: '0 4px 18px rgba(201,153,63,0.35)',
-        }}
-        className="flex items-center gap-2 px-6 py-3 text-[#1A0A06] rounded-xl hover:brightness-110 active:scale-[0.98] transition-all"
+        style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}
+        className="flex items-center gap-2 px-6 py-3 bg-[#C9993F] text-white rounded-xl hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
       >
         <Plus size={15} />
         Napisz pierwszy wpis
@@ -176,7 +172,7 @@ export function EntriesList({
       {/* Header */}
       <div className="px-5 pt-8 pb-4 border-b border-[rgba(201,169,110,0.2)]">
         <h1 style={{ fontFamily: "'Playfair Display', serif" }}
-          className="text-gradient-gold text-3xl font-bold text-center mb-1">
+          className="text-[#C9993F] text-3xl font-bold text-center mb-1">
           Spis Wspomnień
         </h1>
         <div className="flex justify-center mb-6">

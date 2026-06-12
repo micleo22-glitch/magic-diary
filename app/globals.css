@@ -33,13 +33,12 @@ html, body {
   padding: 0;
 }
 
-/* Parchment texture background — layered vignette + subtle grain */
+/* Parchment texture background */
 .parchment-bg {
-  background-color: #F6EFDA;
+  background-color: #F5EDD8;
   background-image:
-    radial-gradient(ellipse 70% 45% at 18% -5%, rgba(201, 153, 63, 0.10) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 105% 105%, rgba(139, 90, 43, 0.12) 0%, transparent 60%),
-    radial-gradient(ellipse 120% 80% at 50% 50%, transparent 60%, rgba(139, 90, 43, 0.06) 100%);
+    radial-gradient(ellipse at top left, rgba(201, 153, 63, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(139, 90, 43, 0.08) 0%, transparent 60%);
 }
 
 /* Dark sidebar texture */
@@ -53,82 +52,6 @@ html, body {
   background-color: #2C0F0A;
   background-image:
     radial-gradient(ellipse at top, rgba(201, 153, 63, 0.05) 0%, transparent 70%);
-}
-
-/* ── Modern magic layer ─────────────────────────────────────── */
-
-/* Film grain — subtle texture overlay for dark surfaces */
-.grain-overlay {
-  position: relative;
-  isolation: isolate;
-}
-.grain-overlay::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* Tiny twinkling stars for dark surfaces */
-.starfield {
-  position: relative;
-}
-.starfield::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(1px 1px at 12% 22%, rgba(240, 201, 106, 0.85) 0%, transparent 100%),
-    radial-gradient(1px 1px at 78% 12%, rgba(240, 201, 106, 0.6) 0%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 55% 38%, rgba(245, 237, 216, 0.55) 0%, transparent 100%),
-    radial-gradient(1px 1px at 30% 64%, rgba(240, 201, 106, 0.5) 0%, transparent 100%),
-    radial-gradient(1px 1px at 88% 52%, rgba(245, 237, 216, 0.45) 0%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 8% 86%, rgba(240, 201, 106, 0.55) 0%, transparent 100%),
-    radial-gradient(1px 1px at 65% 82%, rgba(240, 201, 106, 0.65) 0%, transparent 100%),
-    radial-gradient(1px 1px at 42% 8%, rgba(245, 237, 216, 0.5) 0%, transparent 100%);
-  animation: twinkle 5s ease-in-out infinite alternate;
-}
-@keyframes twinkle {
-  0%   { opacity: 0.35; }
-  50%  { opacity: 0.9; }
-  100% { opacity: 0.5; }
-}
-
-/* Gold gradient headline text */
-.text-gradient-gold {
-  background: linear-gradient(115deg, #F0C96A 0%, #C9993F 45%, #E8C87E 80%, #B98A35 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-/* Soft pulsing glow (avatars, logo) */
-@keyframes glowPulse {
-  0%, 100% { filter: drop-shadow(0 0 10px var(--glow-color, rgba(201,153,63,0.35))); }
-  50%      { filter: drop-shadow(0 0 22px var(--glow-color, rgba(201,153,63,0.55))); }
-}
-.glow-pulse { animation: glowPulse 3.2s ease-in-out infinite; }
-
-/* Floating drift for decorative elements */
-@keyframes floatY {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-7px); }
-}
-.float-y { animation: floatY 5s ease-in-out infinite; }
-
-/* Card hover lift (parchment cards) */
-.card-lift {
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
-}
-.card-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(43, 26, 15, 0.14), 0 2px 8px rgba(43, 26, 15, 0.08);
 }
 
 /* TipTap editor styles */

@@ -24,7 +24,7 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
 
   return (
     <motion.div
-      className="app-bg starfield fixed inset-0 flex flex-col items-center justify-center overflow-hidden"
+      className="app-bg fixed inset-0 flex flex-col items-center justify-center overflow-hidden"
       style={{ backgroundColor: '#1A0A06' }}
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -94,13 +94,9 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
       {/* Loading bar */}
       <motion.div
         className="absolute bottom-14 rounded-full"
-        style={{
-          height: 2,
-          background: 'linear-gradient(90deg, transparent, #F0C96A, transparent)',
-          boxShadow: '0 0 12px rgba(240,201,106,0.6)',
-        }}
+        style={{ height: 1, background: '#C9993F' }}
         initial={{ width: 0, opacity: 0 }}
-        animate={{ width: 150, opacity: [0, 0.9, 0.5] }}
+        animate={{ width: 130, opacity: [0, 0.8, 0.4] }}
         transition={{ duration: 1.4, ease: 'easeInOut' }}
       />
     </motion.div>

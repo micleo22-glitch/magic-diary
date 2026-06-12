@@ -37,12 +37,8 @@ export function EntryCard({ entry, isSelected, onClick, onDeleted, onToggleFavor
   return (
     <div
       onClick={() => { if (!confirmDelete) onClick() }}
-      className="card-lift relative rounded-2xl cursor-pointer overflow-hidden"
-      style={{
-        background: isSelected ? 'rgba(201,153,63,0.18)' : 'rgba(255,253,246,0.72)',
-        border: isSelected ? '1px solid rgba(201,153,63,0.45)' : '1px solid rgba(201,169,110,0.22)',
-        boxShadow: '0 2px 10px rgba(43,26,15,0.06)',
-      }}
+      className="relative rounded-2xl cursor-pointer transition-all duration-200 overflow-hidden"
+      style={{ background: isSelected ? 'rgba(201,153,63,0.18)' : 'rgba(245,237,216,0.7)' }}
     >
       {/* Main card content */}
       <div className="p-4 flex gap-3 items-start">
