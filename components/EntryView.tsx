@@ -397,18 +397,19 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, o
           <div className="mt-12 flex justify-center">
             <button
               onClick={onChatWithCharacter}
-              className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="flex items-center gap-2.5 px-6 py-3 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98]"
               style={{
                 fontFamily: "'Cinzel', serif",
                 fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: '0.08em',
-                color: 'rgba(201,153,63,0.85)',
-                borderColor: 'rgba(201,153,63,0.25)',
-                background: 'rgba(201,153,63,0.06)',
+                color: '#1A0A06',
+                borderColor: 'rgba(201,153,63,0.5)',
+                background: 'rgba(201,153,63,0.22)',
+                boxShadow: '0 1px 6px rgba(201,153,63,0.15)',
               }}
             >
-              <MessageCircle size={14} style={{ opacity: 0.8 }} />
+              <MessageCircle size={14} style={{ color: '#C9993F' }} />
               Pogadaj o tym z postacią
             </button>
           </div>
