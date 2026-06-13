@@ -27,7 +27,7 @@ import { toast } from '@/lib/toast'
 import { getHouseTheme, streakLabel } from '@/lib/houseTheme'
 import type { Session } from '@supabase/supabase-js'
 
-type View = 'splash' | 'new' | 'entries' | 'view' | 'edit'
+type View = 'splash' | 'new' | 'entries' | 'view' | 'edit' | 'all'
 type MobilePanel = null | 'menu' | 'settings' | 'profile' | 'postacie'
 
 function getInitials(email: string): string {
@@ -237,6 +237,7 @@ function AppInner() {
   // focus / token refresh — without this guard each re-emit would re-run applyProfile
   // and clobber in-session edits (e.g. a just-changed house) with stale session data.
   const hydratedUserId = useRef<string | null>(null)
+  const entrySourceView = useRef<'all' | 'entries'>('entries')
 
   const hydrate = useCallback((s: Session) => {
     if (hydratedUserId.current === s.user.id) return
@@ -298,7 +299,11 @@ function AppInner() {
     reload(); setSelectedId(entry.id); setView('view')
   }
 
-  const handleSelect = (id: string) => { setSelectedId(id); setView('view') }
+  const handleSelect = (id: string) => {
+    entrySourceView.current = view === 'all' ? 'all' : 'entries'
+    setSelectedId(id)
+    setView('view')
+  }
   const handleEdit = (entry: Entry) => { setEditEntry(entry); setView('edit') }
   const handleDeleted = () => { reload(); setSelectedId(null); setView('entries') }
   const handleNew = () => { setEditEntry(null); setView('new') }
@@ -379,33 +384,58 @@ function AppInner() {
           entry={selectedEntry}
           onEdit={handleEdit}
           onDelete={handleDeleted}
-          onBack={() => setView('entries')}
+          onBack={() => setView(entrySourceView.current)}
           onToggleFavorite={() => handleToggleFavorite(selectedEntry.id)}
           onChatWithCharacter={() => { setChatEntry(selectedEntry); setMobilePanel('postacie') }}
           theme={houseTheme}
         />
       )
     }
+    if (view === 'all') {
+      return (
+        <EntriesList
+          entries={enrichedEntries}
+          selectedEntryId={selectedId}
+          onSelectEntry={id => { handleSelect(id) }}
+          onNewEntry={handleNew}
+          onEntryDeleted={handleDeleted}
+          onToggleFavorite={handleToggleFavorite}
+          loading={entriesLoading && entries.length === 0}
+        />
+      )
+    }
     return (
-      <div className="parchment-bg h-full flex flex-col items-center justify-center gap-5 px-6 text-center">
-        <div className="flex items-end gap-4" style={{ opacity: 0.28 }}>
+      <div className="parchment-bg h-full flex flex-col items-center justify-center gap-6 px-6 text-center">
+        <div className="flex items-end gap-4" style={{ opacity: 0.22 }}>
           <BookMarked size={44} style={{ color: '#C9993F' }} strokeWidth={1.3} />
           <Feather size={52} style={{ color: '#C9993F' }} strokeWidth={1.3} />
         </div>
-        <p style={{ fontFamily: "'Playfair Display', serif", color: 'rgba(122,92,66,0.9)', fontSize: 18 }}
+        <p style={{ fontFamily: "'Playfair Display', serif", color: 'rgba(122,92,66,0.75)', fontSize: 17 }}
           className="italic">
           {entries.length === 0
             ? 'Twój pamiętnik czeka na pierwszy wpis'
-            : 'Wybierz wpis z listy albo zacznij nowy'}
+            : 'Co chcesz teraz zrobić?'}
         </p>
-        <button
-          onClick={handleNew}
-          style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}
-          className="flex items-center gap-2 px-6 py-3 bg-[#C9993F] text-[#1A0A06] rounded-xl hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
-        >
-          <Feather size={15} />
-          {entries.length === 0 ? 'Napisz pierwszy wpis' : 'Nowy wpis'}
-        </button>
+        <div className="flex flex-col gap-3 w-full max-w-[220px]">
+          <button
+            onClick={handleNew}
+            style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-[#C9993F] text-[#1A0A06] rounded-xl hover:bg-[#D4A84A] active:scale-[0.98] transition-all"
+          >
+            <Feather size={14} />
+            {entries.length === 0 ? 'Napisz pierwszy wpis' : 'Nowy wpis'}
+          </button>
+          {entries.length > 0 && (
+            <button
+              onClick={() => setView('all')}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', color: '#C9993F', borderColor: 'rgba(201,153,63,0.35)' }}
+              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl border hover:bg-[rgba(201,153,63,0.08)] active:scale-[0.98] transition-all"
+            >
+              <BookMarked size={14} />
+              Wszystkie wpisy
+            </button>
+          )}
+        </div>
       </div>
     )
   }
@@ -815,6 +845,9 @@ function AppInner() {
           onDeleteAll={handleDeleteAll}
           onPostacie={() => setMobilePanel('postacie')}
           loading={entriesLoading && entries.length === 0}
+          isEditing={view === 'new' || view === 'edit' || view === 'view'}
+          hideEntries={view === 'all'}
+          onShowAllEntries={() => setView('all')}
         />
       </div>
 

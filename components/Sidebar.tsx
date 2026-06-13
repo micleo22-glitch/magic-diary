@@ -70,9 +70,12 @@ interface SidebarProps {
   onDeleteAll: () => void
   onPostacie: () => void
   loading?: boolean
+  isEditing?: boolean
+  hideEntries?: boolean
+  onShowAllEntries?: () => void
 }
 
-const RECENT_COUNT = 5
+const RECENT_COUNT = 8
 
 function SectionCard({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -91,7 +94,7 @@ export function Sidebar({
   entries, selectedEntryId, onSelectEntry, onNewEntry, onToggleFavorite,
   userEmail, username, house, theme = DEFAULT_THEME, onLogout,
   onUsernameChange, onHouseChange, onExport, onDeleteAll, onPostacie,
-  loading = false,
+  loading = false, isEditing = false, hideEntries = false, onShowAllEntries,
 }: SidebarProps) {
   type Sort = 'newest' | 'oldest' | 'mood'
   const SORT_KEY = 'magic_diary_sort'
@@ -577,25 +580,29 @@ export function Sidebar({
         ))}
       </div>
 
-      {/* ── Nowy Wpis ── */}
-      <div className="px-4 pt-4 pb-3">
-        <button
-          onClick={onNewEntry}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl active:scale-[0.98] transition-all shadow-md"
-          style={{
-            background: theme.primary,
-            fontFamily: "'Lora', Georgia, serif", fontSize: 14, fontWeight: 700,
-            color: '#1A0A06',
-            boxShadow: `0 4px 14px ${theme.primaryGlow}`,
-            transition: 'all 0.4s ease',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = theme.primaryHover)}
-          onMouseLeave={e => (e.currentTarget.style.background = theme.primary)}
-        >
-          <Feather size={14} />
-          Nowy Wpis
-        </button>
-      </div>
+      {/* ── Nowy Wpis — ukryty gdy edytor otwarty ── */}
+      {!isEditing && (
+        <div className="px-4 pt-4 pb-3">
+          <button
+            onClick={onNewEntry}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl active:scale-[0.98] transition-all shadow-md"
+            style={{
+              background: theme.primary,
+              fontFamily: "'Lora', Georgia, serif", fontSize: 14, fontWeight: 700,
+              color: '#1A0A06',
+              boxShadow: `0 4px 14px ${theme.primaryGlow}`,
+              transition: 'all 0.4s ease',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = theme.primaryHover)}
+            onMouseLeave={e => (e.currentTarget.style.background = theme.primary)}
+          >
+            <Feather size={14} />
+            Nowy Wpis
+          </button>
+        </div>
+      )}
+
+      <div className={`flex flex-col flex-1 min-h-0 ${hideEntries ? 'invisible overflow-hidden' : ''}`}>
 
       {/* ── Search (tryb „wszystkie") ── */}
       {mode === 'all' && (
@@ -806,7 +813,7 @@ export function Sidebar({
               {recentEntries.map(renderRow)}
               {entries.length > RECENT_COUNT && (
                 <button
-                  onClick={() => setMode('all')}
+                  onClick={() => { onShowAllEntries ? onShowAllEntries() : setMode('all') }}
                   className="mx-1 mt-2 flex items-center justify-center gap-1.5 py-2 rounded-xl border transition-all active:scale-[0.98]"
                   style={{ borderColor: theme.borderColor, color: theme.primary, fontFamily: "'Cinzel', serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}
                   onMouseEnter={e => (e.currentTarget.style.background = theme.primaryDim)}
@@ -830,6 +837,8 @@ export function Sidebar({
             </div>
           )
         )}
+      </div>
+
       </div>
 
       {/* ── Wyloguj ── */}

@@ -254,7 +254,7 @@ export function EntryView({ entry, onEdit, onDelete, onBack, onToggleFavorite, o
       <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(201,169,110,0.2)]">
         <button
           onClick={onBack}
-          className="md:invisible flex items-center gap-1.5 text-[#7A5C42] hover:text-[#C9993F] transition-colors"
+          className="flex items-center gap-1.5 text-[#7A5C42] hover:text-[#C9993F] transition-colors active:scale-95"
           style={{ fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700 }}
         >
           <ArrowLeft size={15} />
