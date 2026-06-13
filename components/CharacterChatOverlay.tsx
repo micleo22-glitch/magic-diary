@@ -51,6 +51,7 @@ export function CharacterChatOverlay({
 }: CharacterChatOverlayProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
+  const [fetchingOpening, setFetchingOpening] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -120,12 +121,17 @@ export function CharacterChatOverlay({
       if (cancelled) return
       if (history.length > 0) {
         setMessages(history.map(m => ({ role: m.role, text: m.text })))
+        setHistoryLoaded(true)
+      } else if (entry) {
+        // Entry context available — fetch opening from API so Snape knows the entry
+        setHistoryLoaded(true)
+        setFetchingOpening(true)
       } else {
         const opening = getStandaloneOpening(character.id)
         setMessages([{ role: 'assistant', text: opening }])
         saveChatMessage(chatId, 'assistant', opening)
+        setHistoryLoaded(true)
       }
-      setHistoryLoaded(true)
     })
     return () => {
       cancelled = true
@@ -133,6 +139,69 @@ export function CharacterChatOverlay({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character.id, entry?.id])
+
+  // Fetch entry-aware opening from API once accessToken is ready
+  useEffect(() => {
+    if (!fetchingOpening || !accessToken || !entry) return
+    let cancelled = false
+    const chatId = charChatId(character.id, entry.id)
+
+    ;(async () => {
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{ role: 'user', text: 'Właśnie otworzyłem mój wpis.' }],
+            teacher: character.id,
+            accessToken,
+            entry: { title: entry.title, content: entry.content, mood: entry.mood, date: entry.date },
+          }),
+        })
+
+        if (cancelled || !res.ok || !res.body) {
+          if (!cancelled) {
+            const fallback = getStandaloneOpening(character.id)
+            setMessages([{ role: 'assistant', text: fallback }])
+            saveChatMessage(chatId, 'assistant', fallback)
+          }
+          return
+        }
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let fullText = ''
+
+        if (!cancelled) setMessages([{ role: 'assistant', text: '' }])
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          fullText += decoder.decode(value, { stream: true })
+          if (!cancelled) setMessages([{ role: 'assistant', text: fullText }])
+        }
+
+        if (!cancelled && fullText) {
+          saveChatMessage(chatId, 'assistant', fullText)
+        } else if (!cancelled) {
+          const fallback = getStandaloneOpening(character.id)
+          setMessages([{ role: 'assistant', text: fallback }])
+          saveChatMessage(chatId, 'assistant', fallback)
+        }
+      } catch {
+        if (!cancelled) {
+          const fallback = getStandaloneOpening(character.id)
+          setMessages([{ role: 'assistant', text: fallback }])
+          saveChatMessage(chatId, 'assistant', fallback)
+        }
+      } finally {
+        if (!cancelled) setFetchingOpening(false)
+      }
+    })()
+
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchingOpening, accessToken])
 
   const send = async () => {
     const text = input.trim()
@@ -269,7 +338,7 @@ export function CharacterChatOverlay({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3">
-        {!historyLoaded && (
+        {(!historyLoaded || (fetchingOpening && messages.length === 0)) && (
           <div className="flex justify-center py-8">
             <span
               className="text-[13px] md:text-[15px]"
