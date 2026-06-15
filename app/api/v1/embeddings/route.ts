@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createUserClient } from '@/lib/supabase-admin'
 import { generateEmbedding, entryToText } from '@/lib/embeddings'
+import { rateLimit } from '@/lib/rate-limit'
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get('Authorization')
@@ -21,6 +22,11 @@ export async function POST(req: NextRequest) {
   const { data: { user }, error: authError } = await db.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Nieprawidłowy token' }, { status: 401 })
+  }
+
+  // Rate limit (best-effort, per user) — embedding backfill is paid + heavy.
+  if (!rateLimit(`embeddings:${user.id}`, 20, 60_000)) {
+    return NextResponse.json({ error: 'Zbyt wiele zapytań w krótkim czasie — odczekaj chwilę.' }, { status: 429 })
   }
 
   let body: { id?: string } = {}

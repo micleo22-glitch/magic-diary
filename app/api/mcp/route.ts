@@ -4,6 +4,7 @@ import { xai } from '@ai-sdk/xai'
 import { generateText, tool, stepCountIs } from 'ai'
 import { z } from 'zod'
 import { hybridSearch } from '@/lib/hybrid-search'
+import { rateLimit } from '@/lib/rate-limit'
 
 // ── MCP server for Magic Diary ────────────────────────────────────────────────
 // Implements JSON-RPC 2.0 over HTTP (Streamable HTTP transport)
@@ -266,6 +267,12 @@ export async function POST(req: NextRequest) {
   if (method === 'tools/call') {
     const { name, arguments: args = {} } = params as { name?: string; arguments?: Record<string, unknown> }
     if (!name) return rpcErr(-32602, 'Wymagane pole: name')
+
+    // Rate limit (best-effort) — tool calls may invoke the paid LLM. Keyed by
+    // token since the user id is resolved inside handleToolCall.
+    if (!rateLimit(`mcp:${token}`, 20, 60_000)) {
+      return rpcErr(-32000, 'Zbyt wiele wywołań w krótkim czasie — odczekaj chwilę.')
+    }
 
     const toolResult = await handleToolCall(name, args as Record<string, unknown>, token)
 

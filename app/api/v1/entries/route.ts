@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createUserClient } from '@/lib/supabase-admin'
 import { isValidDate } from '@/lib/validate'
 import { generateEmbedding, entryToText } from '@/lib/embeddings'
+import { rateLimit } from '@/lib/rate-limit'
 
 function genId(): string {
   return crypto.randomUUID()
@@ -23,6 +24,11 @@ export async function POST(req: NextRequest) {
   const { data: { user }, error: authError } = await db.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Nieprawidłowy token' }, { status: 401 })
+  }
+
+  // Rate limit (best-effort, per user) — write + embedding generation (paid).
+  if (!rateLimit(`entries-write:${user.id}`, 20, 60_000)) {
+    return NextResponse.json({ error: 'Zbyt wiele zapytań w krótkim czasie — odczekaj chwilę.' }, { status: 429 })
   }
 
   let body: Record<string, unknown> = {}

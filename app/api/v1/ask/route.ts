@@ -5,6 +5,7 @@ import { xai } from '@ai-sdk/xai'
 import { generateText, tool, stepCountIs } from 'ai'
 import { z } from 'zod'
 import { hybridSearch } from '@/lib/hybrid-search'
+import { rateLimit } from '@/lib/rate-limit'
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get('Authorization')
@@ -49,6 +50,11 @@ export async function POST(req: NextRequest) {
   const { data: { user }, error: authError } = await db.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Nieprawidłowy token' }, { status: 401 })
+  }
+
+  // Rate limit (best-effort, per user) — guards the paid LLM against abuse.
+  if (!rateLimit(`ask:${user.id}`, 20, 60_000)) {
+    return NextResponse.json({ error: 'Zbyt wiele zapytań w krótkim czasie — odczekaj chwilę.' }, { status: 429 })
   }
 
   const body = await req.json()
