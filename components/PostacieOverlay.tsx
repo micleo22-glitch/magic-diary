@@ -128,13 +128,15 @@ export function PostacieOverlay({
     })
   }
 
-  const cartTotal = Array.from(cart).reduce((sum, id) => {
-    return sum + (AGENT_PRICE[id]?.amount ?? 0)
-  }, 0)
-
-  const cartTotalLabel = cartTotal > 0
-    ? `${(cartTotal / 100).toFixed(0)} zł`
-    : ''
+  // Suma z etykiet (np. "5 zł" → 5); Stripe jest źródłem prawdy dla faktycznej kwoty.
+  const cartTotalLabel = Array.from(cart)
+    .map(id => AGENT_PRICE[id]?.label ?? '')
+    .filter(Boolean)
+    .reduce((sum, label) => {
+      const n = parseFloat(label.replace(/[^\d.,]/g, '').replace(',', '.'))
+      return sum + (isNaN(n) ? 0 : n)
+    }, 0)
+    .toFixed(0) + ' zł'
 
   const isShop = mode === 'shop'
 

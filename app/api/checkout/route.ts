@@ -57,11 +57,7 @@ export async function POST(req: NextRequest) {
     const checkout = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: agentIds.map(id => ({
-        price_data: {
-          currency: AGENT_PRICE[id].currency,
-          unit_amount: AGENT_PRICE[id].amount,
-          product_data: { name: AGENT_PRICE[id].name, metadata: { agent_id: id } },
-        },
+        price: AGENT_PRICE[id].stripePriceId,
         quantity: 1,
       })),
       client_reference_id: user.id,

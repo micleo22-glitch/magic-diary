@@ -1,28 +1,24 @@
-// Katalog PŁATNYCH nauczycieli — źródło prawdy dla cen.
+// Katalog PŁATNYCH nauczycieli — źródło prawdy dla mapowania agent_id → Stripe.
 //
-// Podział odpowiedzialności (świadoma decyzja architektoniczna — patrz plan Tydzień 4):
-//   • CENA (kwota, nazwa)   → tutaj, w kodzie. Checkout tworzy w Stripe pozycję „w locie"
-//                             (inline price_data), więc NIE trzeba ręcznie zakładać produktów.
-//   • OSOBOWOŚĆ / PROMPT    → app/api/chat/route.ts (mapa POSTACIE).
-//   • METADANE WIZUALNE     → components/PostacieOverlay.tsx (CHARACTERS).
-//   • KTO CO KUPIŁ          → Supabase, tabela `entitlements`.
+//   • CENA / PRODUKT            → Stripe Dashboard (Products + Prices).
+//                                 Zmiana ceny = edycja w Stripe, bez redeploy.
+//   • stripePriceId             → tu, jako referencja do ceny w Stripe.
+//   • OSOBOWOŚĆ / PROMPT        → app/api/chat/route.ts (mapa POSTACIE).
+//   • METADANE WIZUALNE         → components/PostacieOverlay.tsx (CHARACTERS).
+//   • KTO CO KUPIŁ              → Supabase, tabela `entitlements`.
 
 export interface PaidAgentMeta {
-  /** Kwota w najmniejszej jednostce (grosze): 5,00 zł = 500. */
-  amount: number
-  /** Waluta ISO (małe litery), np. 'pln'. */
-  currency: string
-  /** Nazwa pozycji pokazywana na stronie Stripe Checkout. */
-  name: string
-  /** Etykieta ceny na przycisku KUP w UI. */
+  /** Stripe Price ID (price_XXXX) — używany w Checkout Session. */
+  stripePriceId: string
+  /** Etykieta ceny na przycisku KUP w UI (synchronizuj z ceną w Stripe). */
   label: string
 }
 
 export const AGENT_PRICE: Record<string, PaidAgentMeta> = {
-  dumbledore: { amount: 500, currency: 'pln', name: 'Albus Dumbledore — Dyrektor Hogwartu', label: '5 zł' },
-  hagrid:     { amount: 500, currency: 'pln', name: 'Rubeus Hagrid — Leśnik Hogwartu', label: '5 zł' },
-  mcgonagall: { amount: 500, currency: 'pln', name: 'Minerwa McGonagall — Profesor Transfiguracji', label: '5 zł' },
-  lockhart:   { amount: 500, currency: 'pln', name: 'Gilderoy Lockhart — Profesor Obrony', label: '5 zł' },
+  dumbledore: { stripePriceId: 'price_1TjOWJF7efvmDVicRfNcWXJD', label: '5 zł' },
+  hagrid:     { stripePriceId: 'price_1TjOWaF7efvmDVicYuY1PM1n', label: '5 zł' },
+  mcgonagall: { stripePriceId: 'price_1TjOWdF7efvmDVicLHmneiIs', label: '5 zł' },
+  lockhart:   { stripePriceId: 'price_1TjOWfF7efvmDVicozRqxa9q', label: '5 zł' },
 }
 
 /** Lista id płatnych agentów (do iteracji / walidacji). */
