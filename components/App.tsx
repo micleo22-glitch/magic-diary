@@ -174,6 +174,8 @@ function AppInner() {
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const [chatEntry, setChatEntry] = useState<Entry | null>(null)
   const [owned, setOwned] = useState<string[]>([])  // id posiadanych płatnych agentów
+  const [postacieMode, setPostacieMode] = useState<'browse' | 'shop'>('browse')
+  const [highlightAgents, setHighlightAgents] = useState<string[]>([])
 
   // First paint: pre-fill from cache only (server metadata is the source of truth).
   useEffect(() => {
@@ -291,14 +293,28 @@ function AppInner() {
     if (purchase === 'cancel') { toast('Zakup anulowany', 'info'); return }
     if (purchase !== 'success') return
 
-    const name = CHARACTERS.find(c => c.id === agentId)?.name ?? 'nowego nauczyciela'
-    toast(`Odblokowano: ${name}`, 'success')
+    // Obsługa zarówno starego ?agent= jak i nowego ?agents= (multi-koszyk)
+    const agentsParam = params.get('agents') ?? (agentId ? agentId : null)
+    const boughtIds = agentsParam ? agentsParam.split(',').filter(Boolean) : []
+
+    const names = boughtIds
+      .map(id => CHARACTERS.find(c => c.id === id)?.name)
+      .filter(Boolean)
+      .join(', ')
+    toast(`Odblokowano: ${names || 'nowego nauczyciela'}`, 'success')
+
+    // Otwórz overlay w trybie sklep z podświetlonymi odblokowanymi postaciami
+    setPostacieMode('shop')
+    setMobilePanel('postacie')
+    setHighlightAgents(boughtIds)
+    setTimeout(() => setHighlightAgents([]), 3500)
 
     let tries = 0
     const tick = async () => {
       const ids = await fetchEntitlements()
       setOwned(ids)
-      if (agentId && !ids.includes(agentId) && tries < 4) {
+      const allGranted = boughtIds.every(id => ids.includes(id))
+      if (!allGranted && tries < 4) {
         tries++
         setTimeout(tick, 1500)
       }
@@ -346,15 +362,15 @@ function AppInner() {
   const handleNew = () => { setEditEntry(null); setView('new') }
   const handleLogout = async () => { await supabase.auth.signOut() }
 
-  // KUP nauczyciela → utwórz Checkout Session i przekieruj na Stripe.
-  async function handleBuyAgent(agentId: string) {
+  // KUP nauczycieli → utwórz Checkout Session i przekieruj na Stripe.
+  async function handleBuyAgents(agentIds: string[]) {
     const token = session?.access_token
     if (!token) { toast('Zaloguj się, aby kupić nauczyciela', 'error'); return }
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId, accessToken: token }),
+        body: JSON.stringify({ agentIds, accessToken: token }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.url) {
@@ -798,7 +814,8 @@ function AppInner() {
                       setMenuOpen(false)
                       if (label === 'Ustawienia') setMobilePanel('settings')
                       else if (label === 'Profil') setMobilePanel('profile')
-                      else if (label === 'Postacie' || label === 'Sklep') setMobilePanel('postacie')
+                      else if (label === 'Postacie') { setPostacieMode('browse'); setMobilePanel('postacie') }
+                      else if (label === 'Sklep') { setPostacieMode('shop'); setMobilePanel('postacie') }
                       else toast('Wkrótce dostępne', 'info')
                     }}
                     className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all active:scale-[0.98]"
@@ -867,9 +884,11 @@ function AppInner() {
           <PostacieOverlay
             onClose={() => setMobilePanel(null)}
             onSelectCharacter={(char) => setSelectedCharacter(char)}
-            onBuyAgent={handleBuyAgent}
+            onBuyAgents={handleBuyAgents}
             owned={owned}
             theme={houseTheme}
+            mode={postacieMode}
+            highlightAgents={highlightAgents}
           />
         )}
       </AnimatePresence>
@@ -903,7 +922,7 @@ function AppInner() {
           onHouseChange={selectMobileHouse}
           onExport={() => { exportEntries(entries); toast('Plik pobrany', 'success') }}
           onDeleteAll={handleDeleteAll}
-          onPostacie={() => setMobilePanel('postacie')}
+          onPostacie={(mode = 'browse') => { setPostacieMode(mode); setMobilePanel('postacie') }}
           loading={entriesLoading && entries.length === 0}
           isEditing={view === 'new' || view === 'edit' || view === 'view'}
           hideEntries={view === 'all'}

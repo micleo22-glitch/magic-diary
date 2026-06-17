@@ -1,9 +1,10 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { X, Lock, GraduationCap, FlaskConical, TreePine, Wand2, Star, Bird, Sparkles } from 'lucide-react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Lock, GraduationCap, FlaskConical, TreePine, Wand2, Star, Bird, Sparkles, ShoppingBag, Check, ShoppingCart } from 'lucide-react'
 import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
-import { isPaidAgent, agentPriceLabel } from '@/lib/agents'
+import { isPaidAgent, agentPriceLabel, AGENT_PRICE } from '@/lib/agents'
 
 export interface Character {
   id: string
@@ -97,20 +98,49 @@ export const CHARACTERS: Character[] = [
 interface PostacieOverlayProps {
   onClose: () => void
   onSelectCharacter: (char: Character) => void
-  /** Wywoływane gdy user tapnie zablokowanego płatnego nauczyciela (start zakupu). */
-  onBuyAgent?: (agentId: string) => void
+  /** Wywołane gdy user potwierdza zakup (jednego lub wielu agentów). */
+  onBuyAgents?: (agentIds: string[]) => void
   /** Id płatnych agentów, które user już posiada (z tabeli entitlements). */
   owned?: string[]
   theme?: HouseTheme
+  /** 'browse' = Postacie (wybór do chatu); 'shop' = Sklep (zakup). */
+  mode?: 'browse' | 'shop'
+  /** Id agentów odblokowanych właśnie po zakupie — świecą przez chwilę. */
+  highlightAgents?: string[]
 }
 
 export function PostacieOverlay({
   onClose,
   onSelectCharacter,
-  onBuyAgent,
+  onBuyAgents,
   owned = [],
   theme = DEFAULT_THEME,
+  mode = 'browse',
+  highlightAgents = [],
 }: PostacieOverlayProps) {
+  const [cart, setCart] = useState<Set<string>>(new Set())
+
+  const toggleCart = (id: string) => {
+    setCart(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const cartTotal = Array.from(cart).reduce((sum, id) => {
+    return sum + (AGENT_PRICE[id]?.amount ?? 0)
+  }, 0)
+
+  const cartTotalLabel = cartTotal > 0
+    ? `${(cartTotal / 100).toFixed(0)} zł`
+    : ''
+
+  const isShop = mode === 'shop'
+
+  const paidChars = CHARACTERS.filter(c => isPaidAgent(c.id))
+  const freeChars  = CHARACTERS.filter(c => !isPaidAgent(c.id))
+
   return (
     <motion.div
       className="fixed inset-0 z-[60] flex flex-col"
@@ -123,13 +153,16 @@ export function PostacieOverlay({
       exit={{ opacity: 0, y: 24 }}
       transition={{ duration: 0.22 }}
     >
-      {/* Header — identical to Overlay component pattern */}
+      {/* Header */}
       <div
         className="flex items-center justify-between px-5 pt-6 pb-4"
         style={{ borderBottom: `1px solid ${theme.borderColor}` }}
       >
         <div className="flex items-center gap-3">
-          <GraduationCap size={16} className="md:w-5 md:h-5" style={{ color: theme.primary }} />
+          {isShop
+            ? <ShoppingBag size={16} className="md:w-5 md:h-5" style={{ color: theme.primary }} />
+            : <GraduationCap size={16} className="md:w-5 md:h-5" style={{ color: theme.primary }} />
+          }
           <span
             className="text-[14px] md:text-[17px]"
             style={{
@@ -138,7 +171,7 @@ export function PostacieOverlay({
               letterSpacing: '0.1em',
             }}
           >
-            POSTACIE
+            {isShop ? 'SKLEP MAGICZNY' : 'POSTACIE'}
           </span>
         </div>
         <button
@@ -160,51 +193,281 @@ export function PostacieOverlay({
           fontStyle: 'italic',
         }}
       >
-        Wybierz postać i rozpocznij rozmowę
+        {isShop
+          ? 'Odblokuj nauczycieli, aby z nimi rozmawiać'
+          : 'Wybierz postać i rozpocznij rozmowę'
+        }
       </p>
 
-      {/* Grid — 2 cols mobile, 4 cols desktop at 1.5× size */}
-      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-10">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:max-w-[720px] md:mx-auto">
-          {CHARACTERS.map((char, i) => {
-            // Stan blokady jest POCHODNY: darmowi zawsze otwarci; płatni otwarci
-            // tylko gdy user ma entitlement. Statyczne locked już nie decyduje.
-            const locked = isPaidAgent(char.id) ? !owned.includes(char.id) : false
-            const priceLabel = locked ? agentPriceLabel(char.id) : null
-            return (
-              <CharacterCard
-                key={char.id}
-                char={char}
-                index={i}
-                theme={theme}
-                locked={locked}
-                priceLabel={priceLabel}
-                onSelect={() => {
-                  if (!locked) onSelectCharacter(char)
-                  else if (priceLabel) onBuyAgent?.(char.id)
-                }}
-              />
-            )
-          })}
-        </div>
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-24">
+        {isShop ? (
+          /* ── SKLEP: do kupienia na górze, posiadane (darmowe + zakupione) na dole ── */
+          <>
+            {/* Locked paid — do kupienia */}
+            {paidChars.some(c => !owned.includes(c.id)) && (
+              <div className="mb-6">
+                <SectionLabel label="Płatni nauczyciele" theme={theme} />
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:max-w-[720px] md:mx-auto">
+                  {paidChars
+                    .filter(c => !owned.includes(c.id))
+                    .map((char, i) => {
+                      const inCart = cart.has(char.id)
+                      const highlighted = highlightAgents.includes(char.id)
+                      return (
+                        <ShopCard
+                          key={char.id}
+                          char={char}
+                          index={i}
+                          theme={theme}
+                          locked={true}
+                          inCart={inCart}
+                          highlighted={highlighted}
+                          onToggle={() => toggleCart(char.id)}
+                        />
+                      )
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* Posiadane — darmowe + już zakupione płatne */}
+            <div>
+              <SectionLabel label="Posiadane" theme={theme} />
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:max-w-[720px] md:mx-auto">
+                {[
+                  ...freeChars.map(c => ({ char: c, isFree: true })),
+                  ...paidChars.filter(c => owned.includes(c.id)).map(c => ({ char: c, isFree: false })),
+                ].map(({ char, isFree }, i) => {
+                  const highlighted = highlightAgents.includes(char.id)
+                  return (
+                    <ShopCard
+                      key={char.id}
+                      char={char}
+                      index={(paidChars.filter(c => !owned.includes(c.id)).length) + i}
+                      theme={theme}
+                      locked={false}
+                      inCart={false}
+                      highlighted={highlighted}
+                      onToggle={() => onSelectCharacter(char)}
+                      isFree={isFree}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        ) : (
+          /* ── POSTACIE: wszystkie razem ── */
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:max-w-[720px] md:mx-auto">
+            {CHARACTERS.map((char, i) => {
+              const locked = isPaidAgent(char.id) ? !owned.includes(char.id) : false
+              const highlighted = highlightAgents.includes(char.id)
+              return (
+                <BrowseCard
+                  key={char.id}
+                  char={char}
+                  index={i}
+                  theme={theme}
+                  locked={locked}
+                  highlighted={highlighted}
+                  onSelect={() => { if (!locked) onSelectCharacter(char) }}
+                />
+              )
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Sticky footer — shop only, appears when cart has items */}
+      <AnimatePresence>
+        {isShop && cart.size > 0 && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-4"
+            style={{
+              background: `linear-gradient(0deg, ${theme.sidebarBg ?? '#1A0A06'} 70%, transparent 100%)`,
+            }}
+          >
+            <button
+              onClick={() => onBuyAgents?.(Array.from(cart))}
+              className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform"
+              style={{
+                background: theme.primary,
+                color: '#0a0806',
+                fontFamily: "'Cinzel', serif",
+                fontSize: 14,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                boxShadow: `0 4px 24px ${theme.primary}50`,
+              }}
+            >
+              <ShoppingCart size={16} />
+              KUP WYBRANE ({cart.size}) · {cartTotalLabel}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
 
-function CharacterCard({
+function SectionLabel({ label, theme }: { label: string; theme: HouseTheme }) {
+  return (
+    <p
+      className="text-[10px] md:text-[11px] uppercase mb-3 mt-1"
+      style={{
+        fontFamily: "'Cinzel', serif",
+        color: `${theme.primary}60`,
+        letterSpacing: '0.15em',
+      }}
+    >
+      {label}
+    </p>
+  )
+}
+
+/** Karta w trybie SKLEP */
+function ShopCard({
   char,
   index,
   theme,
   locked,
-  priceLabel,
+  inCart,
+  highlighted,
+  onToggle,
+  isFree = false,
+}: {
+  char: Character
+  index: number
+  theme: HouseTheme
+  locked: boolean
+  inCart: boolean
+  highlighted: boolean
+  onToggle: () => void
+  isFree?: boolean
+}) {
+  const priceLabel = agentPriceLabel(char.id)
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06, duration: 0.28, ease: 'easeOut' }}
+      onClick={onToggle}
+      className="flex flex-col items-center transition-opacity duration-200 active:scale-[0.97] min-h-[44px]"
+      style={{
+        opacity: locked && !inCart ? 0.7 : 1,
+        cursor: 'pointer',
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        outline: 'none',
+      }}
+      aria-label={locked ? `Dodaj ${char.name} do koszyka` : char.name}
+    >
+      {/* Portrait */}
+      <PortraitFrame
+        char={char}
+        theme={theme}
+        locked={locked}
+        inCart={inCart}
+        highlighted={highlighted}
+      />
+
+      {/* Nameplate */}
+      <div className="mt-2 px-1 flex flex-col items-center gap-1">
+        <p
+          className="text-[12px] md:text-[15px]"
+          style={{
+            fontFamily: "'Cinzel', serif",
+            color: highlighted ? theme.primary : locked ? 'rgba(201,153,63,0.55)' : '#C9993F',
+            letterSpacing: '0.05em',
+            lineHeight: 1.3,
+            textAlign: 'center',
+          }}
+        >
+          {char.name}
+        </p>
+        {highlighted ? (
+          <span
+            className="text-[10px] md:text-[12px] mt-0.5 flex items-center gap-1"
+            style={{
+              fontFamily: "'Cinzel', serif",
+              color: theme.primary,
+              letterSpacing: '0.08em',
+              fontWeight: 700,
+              border: `1px solid ${theme.primary}`,
+              borderRadius: 999,
+              padding: '2px 10px',
+              background: `${theme.primary}22`,
+            }}
+          >
+            <Check size={10} /> ODBLOKOWANO
+          </span>
+        ) : locked && priceLabel ? (
+          <span
+            className="text-[10px] md:text-[12px] mt-0.5"
+            style={{
+              fontFamily: "'Cinzel', serif",
+              color: inCart ? '#0a0806' : theme.primary,
+              letterSpacing: '0.08em',
+              fontWeight: 700,
+              border: `1px solid ${inCart ? theme.primary : `${theme.primary}55`}`,
+              borderRadius: 999,
+              padding: '2px 10px',
+              background: inCart ? theme.primary : theme.primaryDim,
+            }}
+          >
+            {inCart ? '✓ W KOSZYKU' : `KUP · ${priceLabel}`}
+          </span>
+        ) : isFree ? (
+          <span
+            className="text-[10px] md:text-[12px] mt-0.5 flex items-center gap-1"
+            style={{
+              fontFamily: "'Cinzel', serif",
+              color: `${theme.primary}80`,
+              letterSpacing: '0.06em',
+              fontSize: 10,
+            }}
+          >
+            <Check size={9} /> POSIADASZ
+          </span>
+        ) : (
+          <span
+            className="text-[10px] md:text-[12px] mt-0.5 flex items-center gap-1"
+            style={{
+              fontFamily: "'Cinzel', serif",
+              color: `${theme.primary}60`,
+              letterSpacing: '0.06em',
+              fontSize: 10,
+            }}
+          >
+            <Check size={9} /> zakupione
+          </span>
+        )}
+      </div>
+    </motion.button>
+  )
+}
+
+/** Karta w trybie POSTACIE (browse) */
+function BrowseCard({
+  char,
+  index,
+  theme,
+  locked,
+  highlighted,
   onSelect,
 }: {
   char: Character
   index: number
   theme: HouseTheme
   locked: boolean
-  priceLabel: string | null
+  highlighted: boolean
   onSelect: () => void
 }) {
   return (
@@ -216,23 +479,28 @@ function CharacterCard({
       className="flex flex-col items-center transition-opacity duration-200 active:scale-[0.97] min-h-[44px]"
       style={{
         opacity: locked ? 0.62 : 1,
-        cursor: 'pointer',
+        cursor: locked ? 'default' : 'pointer',
         background: 'transparent',
         border: 'none',
         padding: 0,
+        outline: 'none',
       }}
-      aria-label={locked && priceLabel ? `Kup ${char.name} za ${priceLabel}` : char.name}
+      aria-label={char.name}
     >
-      {/* Portrait — no wrapping box, image carries its own frame */}
-      <PortraitFrame char={char} theme={theme} locked={locked} />
+      <PortraitFrame
+        char={char}
+        theme={theme}
+        locked={locked}
+        inCart={false}
+        highlighted={highlighted}
+      />
 
-      {/* Nameplate — floating below portrait, no border */}
       <div className="mt-2 px-1 flex flex-col items-center gap-1">
         <p
           className="text-[12px] md:text-[15px]"
           style={{
             fontFamily: "'Cinzel', serif",
-            color: locked ? 'rgba(201,153,63,0.55)' : '#C9993F',
+            color: highlighted ? theme.primary : locked ? 'rgba(201,153,63,0.55)' : '#C9993F',
             letterSpacing: '0.05em',
             lineHeight: 1.3,
             textAlign: 'center',
@@ -240,34 +508,45 @@ function CharacterCard({
         >
           {char.name}
         </p>
-        {locked && priceLabel ? (
-          // Płatny, jeszcze nieposiadany → przycisk-cue „KUP · cena" (tap kupuje).
+        {highlighted ? (
           <span
-            className="text-[10px] md:text-[12px] mt-0.5"
+            className="text-[10px] md:text-[12px] mt-0.5 flex items-center gap-1"
             style={{
               fontFamily: "'Cinzel', serif",
               color: theme.primary,
               letterSpacing: '0.08em',
               fontWeight: 700,
-              border: `1px solid ${theme.primary}55`,
+              border: `1px solid ${theme.primary}`,
               borderRadius: 999,
               padding: '2px 10px',
-              background: theme.primaryDim,
+              background: `${theme.primary}22`,
             }}
           >
-            KUP · {priceLabel}
+            <Check size={10} /> ODBLOKOWANO
           </span>
+        ) : locked ? (
+          <p
+            className="text-[11px] md:text-[13px]"
+            style={{
+              fontFamily: "'Lora', serif",
+              color: 'rgba(201,153,63,0.28)',
+              fontStyle: 'italic',
+              textAlign: 'center',
+            }}
+          >
+            Kup w Sklepie
+          </p>
         ) : (
           <p
             className="text-[11px] md:text-[13px]"
             style={{
               fontFamily: "'Lora', serif",
-              color: locked ? 'rgba(201,153,63,0.28)' : 'rgba(201,153,63,0.6)',
+              color: 'rgba(201,153,63,0.6)',
               fontStyle: 'italic',
               textAlign: 'center',
             }}
           >
-            {locked ? 'Wkrótce' : char.title}
+            {char.title}
           </p>
         )}
       </div>
@@ -275,8 +554,31 @@ function CharacterCard({
   )
 }
 
-function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseTheme; locked: boolean }) {
-  // Photo characters carry their own frame — show just the image (dimmed if locked).
+function PortraitFrame({
+  char,
+  theme,
+  locked,
+  inCart,
+  highlighted,
+}: {
+  char: Character
+  theme: HouseTheme
+  locked: boolean
+  inCart: boolean
+  highlighted: boolean
+}) {
+  const borderColor = highlighted
+    ? theme.primary
+    : inCart
+    ? `${theme.primary}CC`
+    : 'transparent'
+
+  const boxShadow = highlighted
+    ? `0 0 20px ${theme.primary}70, 0 0 40px ${theme.primary}30`
+    : inCart
+    ? `0 0 12px ${theme.primary}50`
+    : 'none'
+
   if (char.photo) {
     return (
       <div
@@ -285,6 +587,10 @@ function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseT
           aspectRatio: '3/4.3',
           width: '100%',
           overflow: 'hidden',
+          borderRadius: 4,
+          border: `2px solid ${borderColor}`,
+          boxShadow,
+          transition: 'border-color 0.2s, box-shadow 0.2s',
         }}
       >
         <img
@@ -296,10 +602,11 @@ function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseT
             width: '100%',
             height: char.id === 'hedwig' ? 'calc(100% - 5px)' : '100%',
             objectFit: 'cover',
-            filter: locked ? 'brightness(0.35) saturate(0.4)' : 'none',
+            filter: locked && !inCart && !highlighted ? 'brightness(0.35) saturate(0.4)' : 'none',
+            transition: 'filter 0.3s',
           }}
         />
-        {locked && (
+        {locked && !inCart && (
           <div
             style={{
               position: 'absolute',
@@ -312,13 +619,40 @@ function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseT
             <Lock size={22} style={{ color: `${theme.primary}50` }} />
           </div>
         )}
+        {inCart && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 6,
+              right: 6,
+              width: 22,
+              height: 22,
+              borderRadius: '50%',
+              background: theme.primary,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Check size={13} style={{ color: '#0a0806' }} />
+          </div>
+        )}
       </div>
     )
   }
 
   return (
-    <div style={{ position: 'relative', aspectRatio: '3/4', width: '100%' }}>
-      {/* Corner ornaments (unlocked only) */}
+    <div
+      style={{
+        position: 'relative',
+        aspectRatio: '3/4',
+        width: '100%',
+        borderRadius: 4,
+        border: `2px solid ${borderColor}`,
+        boxShadow,
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+      }}
+    >
       {!locked && (
         <>
           <CornerOrnament position="top-left" color={`${theme.primary}AA`} />
@@ -328,7 +662,6 @@ function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseT
         </>
       )}
 
-      {/* Portrait interior */}
       <div
         style={{
           position: 'absolute',
@@ -337,7 +670,6 @@ function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseT
           background: `linear-gradient(180deg, ${char.gradientFrom} 0%, ${char.gradientTo} 100%)`,
         }}
       >
-        {/* Atmospheric glow behind character */}
         {!locked && (
           <div
             style={{
@@ -354,7 +686,6 @@ function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseT
           />
         )}
 
-        {/* Character art or lock */}
         <div
           style={{
             position: 'absolute',
@@ -364,14 +695,13 @@ function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseT
             justifyContent: 'center',
           }}
         >
-          {locked ? (
+          {locked && !inCart ? (
             <Lock size={22} style={{ color: `${theme.primary}25` }} />
           ) : (
             <CharacterArt char={char} />
           )}
         </div>
 
-        {/* Bottom vignette */}
         <div
           style={{
             position: 'absolute',
@@ -383,23 +713,41 @@ function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseT
           }}
         />
 
-        {/* Inner frame bevel */}
         <div
           style={{
             position: 'absolute',
             inset: 4,
             borderRadius: 2,
-            border: `1px solid ${locked ? `${theme.primary}10` : `${theme.primary}25`}`,
+            border: `1px solid ${locked && !inCart ? `${theme.primary}10` : `${theme.primary}25`}`,
             pointerEvents: 'none',
           }}
         />
       </div>
+
+      {inCart && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            width: 22,
+            height: 22,
+            borderRadius: '50%',
+            background: theme.primary,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 4,
+          }}
+        >
+          <Check size={13} style={{ color: '#0a0806' }} />
+        </div>
+      )}
     </div>
   )
 }
 
 function CharacterArt({ char }: { char: Character }) {
-  // Other unlocked characters: large themed icon
   const IconComp = char.Icon
   return (
     <IconComp

@@ -14,17 +14,24 @@ function jsonError(message: string, status: number): Response {
   })
 }
 
-// Tworzy Stripe Checkout Session dla zakupu jednego płatnego nauczyciela.
-// Zwraca { url } — klient robi window.location.href = url (redirect na Stripe).
+// Tworzy Stripe Checkout Session dla zakupu jednego lub wielu nauczycieli.
+// Przyjmuje { agentIds: string[], accessToken } — zwraca { url }.
 export async function POST(req: NextRequest) {
-  const { agentId, accessToken } = await req.json().catch(() => ({}))
+  const body = await req.json().catch(() => ({}))
 
-  // ── Auth: wymagany ważny token Supabase (jak w /api/chat) ─────────────────────
-  const token: string | null =
-    accessToken ?? req.headers.get('Authorization')?.replace(/^Bearer /, '') ?? null
-  if (!token) return jsonError('Zaloguj się, aby kupić nauczyciela.', 401)
+  // Obsługa zarówno nowego agentIds[] jak i starego agentId (backward compat)
+  const agentIds: string[] = Array.isArray(body.agentIds)
+    ? body.agentIds
+    : body.agentId
+    ? [body.agentId]
+    : []
 
-  const db = createUserClient(token)
+  const accessToken: string | null =
+    body.accessToken ?? req.headers.get('Authorization')?.replace(/^Bearer /, '') ?? null
+
+  if (!accessToken) return jsonError('Zaloguj się, aby kupić nauczyciela.', 401)
+
+  const db = createUserClient(accessToken)
   const { data: { user }, error: authError } = await db.auth.getUser()
   if (authError || !user) return jsonError('Nieprawidłowy lub wygasły token.', 401)
 
@@ -32,37 +39,35 @@ export async function POST(req: NextRequest) {
     return jsonError('Zbyt wiele prób — odczekaj chwilę.', 429)
   }
 
-  // ── Walidacja produktu ────────────────────────────────────────────────────────
-  if (!agentId || !isPaidAgent(agentId)) {
-    return jsonError('Nieznany lub darmowy nauczyciel.', 400)
-  }
-  if (await ownsAgent(db, agentId)) {
-    return jsonError('Masz już tego nauczyciela.', 409)
+  if (!agentIds.length) return jsonError('Nie wybrano żadnego nauczyciela.', 400)
+
+  // Walidacja każdego agenta
+  for (const id of agentIds) {
+    if (!isPaidAgent(id)) return jsonError(`Nieznany lub darmowy nauczyciel: ${id}.`, 400)
+    if (await ownsAgent(db, id)) return jsonError(`Masz już tego nauczyciela: ${id}.`, 409)
   }
 
   const stripeKey = process.env.STRIPE_SECRET_KEY
   if (!stripeKey) return jsonError('Brak konfiguracji płatności (STRIPE_SECRET_KEY).', 500)
   const stripe = new Stripe(stripeKey)
 
-  const agent = AGENT_PRICE[agentId]
   const origin = req.headers.get('origin') ?? new URL(req.url).origin
 
   try {
     const checkout = await stripe.checkout.sessions.create({
       mode: 'payment',
-      // Pozycja tworzona „w locie" — nie wymaga wcześniej założonego produktu w Stripe.
-      line_items: [{
+      line_items: agentIds.map(id => ({
         price_data: {
-          currency: agent.currency,
-          unit_amount: agent.amount,
-          product_data: { name: agent.name, metadata: { agent_id: agentId } },
+          currency: AGENT_PRICE[id].currency,
+          unit_amount: AGENT_PRICE[id].amount,
+          product_data: { name: AGENT_PRICE[id].name, metadata: { agent_id: id } },
         },
         quantity: 1,
-      }],
-      // client_reference_id + metadata = jak webhook przypisze zakup do usera i agenta.
+      })),
       client_reference_id: user.id,
-      metadata: { user_id: user.id, agent_id: agentId },
-      success_url: `${origin}/?purchase=success&agent=${agentId}`,
+      // agent_ids = comma-separated lista, webhook ją parsuje
+      metadata: { user_id: user.id, agent_ids: agentIds.join(',') },
+      success_url: `${origin}/?purchase=success&agents=${agentIds.join(',')}`,
       cancel_url: `${origin}/?purchase=cancel`,
       locale: 'pl',
       customer_email: user.email ?? undefined,

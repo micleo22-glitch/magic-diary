@@ -68,7 +68,7 @@ interface SidebarProps {
   onHouseChange: (id: string) => void
   onExport: () => void
   onDeleteAll: () => void
-  onPostacie: () => void
+  onPostacie: (mode?: 'browse' | 'shop') => void
   loading?: boolean
   isEditing?: boolean
   hideEntries?: boolean
@@ -553,7 +553,8 @@ export function Sidebar({
             key={label}
             onClick={() => {
               if (label === 'Ustawienia' || label === 'Profil') setActiveNav(label)
-              else if (label === 'Postacie' || label === 'Sklep') onPostacie()
+              else if (label === 'Postacie') onPostacie('browse')
+              else if (label === 'Sklep') onPostacie('shop')
               else toast('Wkrótce dostępne', 'info')
             }}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 active:scale-[0.98]"

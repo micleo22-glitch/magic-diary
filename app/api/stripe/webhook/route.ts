@@ -33,31 +33,37 @@ export async function POST(req: NextRequest) {
     const session = event.data.object as Stripe.Checkout.Session
     if (session.payment_status === 'paid') {
       const userId = session.metadata?.user_id ?? session.client_reference_id ?? null
-      const agentId = session.metadata?.agent_id ?? null
+      // agent_ids = nowy format (comma-separated); agent_id = stary (backward compat)
+      const agentIds = (session.metadata?.agent_ids ?? session.metadata?.agent_id ?? '')
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean)
 
-      if (userId && agentId) {
+      if (userId && agentIds.length) {
         try {
           const svc = createServiceClient()
-          const { error } = await svc.from('entitlements').upsert(
-            {
-              user_id: userId,
-              agent_id: agentId,
-              source: 'stripe',
-              stripe_session_id: session.id,
-            },
-            { onConflict: 'user_id,agent_id', ignoreDuplicates: true },
-          )
-          if (error) {
-            // Zwróć 500 → Stripe ponowi webhook, zakup nie przepadnie.
-            console.error('[webhook] upsert entitlement:', error.message)
-            return new Response('DB error', { status: 500 })
+          for (const agentId of agentIds) {
+            const { error } = await svc.from('entitlements').upsert(
+              {
+                user_id: userId,
+                agent_id: agentId,
+                source: 'stripe',
+                stripe_session_id: session.id,
+              },
+              { onConflict: 'user_id,agent_id', ignoreDuplicates: true },
+            )
+            if (error) {
+              // Zwróć 500 → Stripe ponowi webhook, zakup nie przepadnie.
+              console.error('[webhook] upsert entitlement:', agentId, error.message)
+              return new Response('DB error', { status: 500 })
+            }
           }
         } catch (e) {
           console.error('[webhook] service client:', e)
           return new Response('DB error', { status: 500 })
         }
       } else {
-        console.warn('[webhook] checkout.session.completed bez user_id/agent_id w metadata')
+        console.warn('[webhook] checkout.session.completed bez user_id/agent_ids w metadata')
       }
     }
   }
