@@ -15,10 +15,10 @@ export interface PaidAgentMeta {
 }
 
 export const AGENT_PRICE: Record<string, PaidAgentMeta> = {
-  dumbledore: { stripePriceId: 'price_1TjOWJF7efvmDVicRfNcWXJD', label: '5 zł' },
-  hagrid:     { stripePriceId: 'price_1TjOWaF7efvmDVicYuY1PM1n', label: '5 zł' },
-  mcgonagall: { stripePriceId: 'price_1TjOWdF7efvmDVicLHmneiIs', label: '5 zł' },
-  lockhart:   { stripePriceId: 'price_1TjOWfF7efvmDVicozRqxa9q', label: '5 zł' },
+  dumbledore: { stripePriceId: 'price_1TjReKFaJoEHNa2WPk8h1gyZ', label: '5 zł' },
+  hagrid:     { stripePriceId: 'price_1TjReLFaJoEHNa2WQbehz4u5', label: '5 zł' },
+  mcgonagall: { stripePriceId: 'price_1TjReMFaJoEHNa2WQQ6NuGmM', label: '5 zł' },
+  lockhart:   { stripePriceId: 'price_1TjReNFaJoEHNa2Wh7f3nNTM', label: '5 zł' },
 }
 
 /** Lista id płatnych agentów (do iteracji / walidacji). */
