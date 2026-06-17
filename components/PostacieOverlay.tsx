@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { X, Lock, GraduationCap, FlaskConical, TreePine, Wand2, Star, Bird, Sparkles } from 'lucide-react'
 import { HouseTheme, DEFAULT_THEME } from '@/lib/houseTheme'
+import { isPaidAgent, agentPriceLabel } from '@/lib/agents'
 
 export interface Character {
   id: string
@@ -96,12 +97,18 @@ export const CHARACTERS: Character[] = [
 interface PostacieOverlayProps {
   onClose: () => void
   onSelectCharacter: (char: Character) => void
+  /** Wywoływane gdy user tapnie zablokowanego płatnego nauczyciela (start zakupu). */
+  onBuyAgent?: (agentId: string) => void
+  /** Id płatnych agentów, które user już posiada (z tabeli entitlements). */
+  owned?: string[]
   theme?: HouseTheme
 }
 
 export function PostacieOverlay({
   onClose,
   onSelectCharacter,
+  onBuyAgent,
+  owned = [],
   theme = DEFAULT_THEME,
 }: PostacieOverlayProps) {
   return (
@@ -159,15 +166,26 @@ export function PostacieOverlay({
       {/* Grid — 2 cols mobile, 4 cols desktop at 1.5× size */}
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-10">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:max-w-[720px] md:mx-auto">
-          {CHARACTERS.map((char, i) => (
-            <CharacterCard
-              key={char.id}
-              char={char}
-              index={i}
-              theme={theme}
-              onSelect={() => !char.locked && onSelectCharacter(char)}
-            />
-          ))}
+          {CHARACTERS.map((char, i) => {
+            // Stan blokady jest POCHODNY: darmowi zawsze otwarci; płatni otwarci
+            // tylko gdy user ma entitlement. Statyczne locked już nie decyduje.
+            const locked = isPaidAgent(char.id) ? !owned.includes(char.id) : false
+            const priceLabel = locked ? agentPriceLabel(char.id) : null
+            return (
+              <CharacterCard
+                key={char.id}
+                char={char}
+                index={i}
+                theme={theme}
+                locked={locked}
+                priceLabel={priceLabel}
+                onSelect={() => {
+                  if (!locked) onSelectCharacter(char)
+                  else if (priceLabel) onBuyAgent?.(char.id)
+                }}
+              />
+            )
+          })}
         </div>
       </div>
     </motion.div>
@@ -178,11 +196,15 @@ function CharacterCard({
   char,
   index,
   theme,
+  locked,
+  priceLabel,
   onSelect,
 }: {
   char: Character
   index: number
   theme: HouseTheme
+  locked: boolean
+  priceLabel: string | null
   onSelect: () => void
 }) {
   return (
@@ -193,15 +215,16 @@ function CharacterCard({
       onClick={onSelect}
       className="flex flex-col items-center transition-opacity duration-200 active:scale-[0.97] min-h-[44px]"
       style={{
-        opacity: char.locked ? 0.5 : 1,
-        cursor: char.locked ? 'default' : 'pointer',
+        opacity: locked ? 0.62 : 1,
+        cursor: 'pointer',
         background: 'transparent',
         border: 'none',
         padding: 0,
       }}
+      aria-label={locked && priceLabel ? `Kup ${char.name} za ${priceLabel}` : char.name}
     >
       {/* Portrait — no wrapping box, image carries its own frame */}
-      <PortraitFrame char={char} theme={theme} />
+      <PortraitFrame char={char} theme={theme} locked={locked} />
 
       {/* Nameplate — floating below portrait, no border */}
       <div className="mt-2 px-1 flex flex-col items-center gap-1">
@@ -209,7 +232,7 @@ function CharacterCard({
           className="text-[12px] md:text-[15px]"
           style={{
             fontFamily: "'Cinzel', serif",
-            color: char.locked ? 'rgba(201,153,63,0.4)' : '#C9993F',
+            color: locked ? 'rgba(201,153,63,0.55)' : '#C9993F',
             letterSpacing: '0.05em',
             lineHeight: 1.3,
             textAlign: 'center',
@@ -217,23 +240,42 @@ function CharacterCard({
         >
           {char.name}
         </p>
-        <p
-          className="text-[11px] md:text-[13px]"
-          style={{
-            fontFamily: "'Lora', serif",
-            color: char.locked ? 'rgba(201,153,63,0.28)' : 'rgba(201,153,63,0.6)',
-            fontStyle: 'italic',
-            textAlign: 'center',
-          }}
-        >
-          {char.locked ? 'Wkrótce' : char.title}
-        </p>
+        {locked && priceLabel ? (
+          // Płatny, jeszcze nieposiadany → przycisk-cue „KUP · cena" (tap kupuje).
+          <span
+            className="text-[10px] md:text-[12px] mt-0.5"
+            style={{
+              fontFamily: "'Cinzel', serif",
+              color: theme.primary,
+              letterSpacing: '0.08em',
+              fontWeight: 700,
+              border: `1px solid ${theme.primary}55`,
+              borderRadius: 999,
+              padding: '2px 10px',
+              background: theme.primaryDim,
+            }}
+          >
+            KUP · {priceLabel}
+          </span>
+        ) : (
+          <p
+            className="text-[11px] md:text-[13px]"
+            style={{
+              fontFamily: "'Lora', serif",
+              color: locked ? 'rgba(201,153,63,0.28)' : 'rgba(201,153,63,0.6)',
+              fontStyle: 'italic',
+              textAlign: 'center',
+            }}
+          >
+            {locked ? 'Wkrótce' : char.title}
+          </p>
+        )}
       </div>
     </motion.button>
   )
 }
 
-function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) {
+function PortraitFrame({ char, theme, locked }: { char: Character; theme: HouseTheme; locked: boolean }) {
   // Photo characters carry their own frame — show just the image (dimmed if locked).
   if (char.photo) {
     return (
@@ -254,10 +296,10 @@ function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) 
             width: '100%',
             height: char.id === 'hedwig' ? 'calc(100% - 5px)' : '100%',
             objectFit: 'cover',
-            filter: char.locked ? 'brightness(0.35) saturate(0.4)' : 'none',
+            filter: locked ? 'brightness(0.35) saturate(0.4)' : 'none',
           }}
         />
-        {char.locked && (
+        {locked && (
           <div
             style={{
               position: 'absolute',
@@ -277,7 +319,7 @@ function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) 
   return (
     <div style={{ position: 'relative', aspectRatio: '3/4', width: '100%' }}>
       {/* Corner ornaments (unlocked only) */}
-      {!char.locked && (
+      {!locked && (
         <>
           <CornerOrnament position="top-left" color={`${theme.primary}AA`} />
           <CornerOrnament position="top-right" color={`${theme.primary}AA`} />
@@ -296,7 +338,7 @@ function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) 
         }}
       >
         {/* Atmospheric glow behind character */}
-        {!char.locked && (
+        {!locked && (
           <div
             style={{
               position: 'absolute',
@@ -322,7 +364,7 @@ function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) 
             justifyContent: 'center',
           }}
         >
-          {char.locked ? (
+          {locked ? (
             <Lock size={22} style={{ color: `${theme.primary}25` }} />
           ) : (
             <CharacterArt char={char} />
@@ -347,7 +389,7 @@ function PortraitFrame({ char, theme }: { char: Character; theme: HouseTheme }) 
             position: 'absolute',
             inset: 4,
             borderRadius: 2,
-            border: `1px solid ${char.locked ? `${theme.primary}10` : `${theme.primary}25`}`,
+            border: `1px solid ${locked ? `${theme.primary}10` : `${theme.primary}25`}`,
             pointerEvents: 'none',
           }}
         />

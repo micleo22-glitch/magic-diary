@@ -15,13 +15,14 @@ import { Sidebar } from './Sidebar'
 import { AuthScreen } from './AuthScreen'
 import { ToastContainer } from './Toast'
 import { Onboarding } from './Onboarding'
-import { PostacieOverlay } from './PostacieOverlay'
+import { PostacieOverlay, CHARACTERS } from './PostacieOverlay'
 import { CharacterChatOverlay } from './CharacterChatOverlay'
 import type { Character } from './PostacieOverlay'
 import { getEntries, deleteEntry } from '@/lib/storage'
 import { getFavoriteIds, toggleFavorite } from '@/lib/favorites'
 import { supabase } from '@/lib/supabase'
 import { profileFromSession, getCachedProfile, cacheProfile, saveProfile, clearCachedProfile } from '@/lib/profile'
+import { fetchEntitlements } from '@/lib/entitlements'
 import { Entry, MOOD_EMOJI, MOOD_LABEL } from '@/types/entry'
 import { toast } from '@/lib/toast'
 import { getHouseTheme, streakLabel } from '@/lib/houseTheme'
@@ -172,6 +173,7 @@ function AppInner() {
   const [entriesLoading, setEntriesLoading] = useState(true)
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const [chatEntry, setChatEntry] = useState<Entry | null>(null)
+  const [owned, setOwned] = useState<string[]>([])  // id posiadanych płatnych agentów
 
   // First paint: pre-fill from cache only (server metadata is the source of truth).
   useEffect(() => {
@@ -239,12 +241,17 @@ function AppInner() {
   const hydratedUserId = useRef<string | null>(null)
   const entrySourceView = useRef<'all' | 'entries'>('entries')
 
+  const refreshOwned = useCallback(async () => {
+    setOwned(await fetchEntitlements())
+  }, [])
+
   const hydrate = useCallback((s: Session) => {
     if (hydratedUserId.current === s.user.id) return
     hydratedUserId.current = s.user.id
     applyProfile(s)
     reload()
-  }, [applyProfile, reload])
+    refreshOwned()
+  }, [applyProfile, reload, refreshOwned])
 
   // Auth listener — hydrate profile + entries once per signed-in user.
   useEffect(() => {
@@ -260,6 +267,7 @@ function AppInner() {
         hydratedUserId.current = null
         setView('splash'); setEntries([])
         setUsername(''); setUsernameInput(''); setHouse(''); setShowOnboarding(false)
+        setOwned([])
         clearCachedProfile()
         setProfileChecked(true)
         return
@@ -268,6 +276,35 @@ function AppInner() {
     })
     return () => subscription.unsubscribe()
   }, [hydrate])
+
+  // Powrót ze Stripe Checkout: ?purchase=success&agent=X (lub =cancel).
+  // Webhook to źródło prawdy; tu dajemy szybki feedback i odświeżamy entitlements
+  // z kilkoma próbami (webhook bywa o ułamek sekundy z tyłu względem redirectu).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const purchase = params.get('purchase')
+    if (!purchase) return
+    const agentId = params.get('agent')
+    window.history.replaceState({}, '', window.location.pathname)
+
+    if (purchase === 'cancel') { toast('Zakup anulowany', 'info'); return }
+    if (purchase !== 'success') return
+
+    const name = CHARACTERS.find(c => c.id === agentId)?.name ?? 'nowego nauczyciela'
+    toast(`Odblokowano: ${name}`, 'success')
+
+    let tries = 0
+    const tick = async () => {
+      const ids = await fetchEntitlements()
+      setOwned(ids)
+      if (agentId && !ids.includes(agentId) && tries < 4) {
+        tries++
+        setTimeout(tick, 1500)
+      }
+    }
+    tick()
+  }, [])
 
   const openToday = useCallback(async () => {
     const data = await reload()
@@ -308,6 +345,27 @@ function AppInner() {
   const handleDeleted = () => { reload(); setSelectedId(null); setView('entries') }
   const handleNew = () => { setEditEntry(null); setView('new') }
   const handleLogout = async () => { await supabase.auth.signOut() }
+
+  // KUP nauczyciela → utwórz Checkout Session i przekieruj na Stripe.
+  async function handleBuyAgent(agentId: string) {
+    const token = session?.access_token
+    if (!token) { toast('Zaloguj się, aby kupić nauczyciela', 'error'); return }
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, accessToken: token }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) {
+        toast(data.error ?? 'Nie udało się rozpocząć płatności', 'error')
+        return
+      }
+      window.location.href = data.url
+    } catch {
+      toast('Nie udało się połączyć z płatnościami', 'error')
+    }
+  }
 
   async function handleDeleteAll() {
     if (deletingAll) return
@@ -740,7 +798,7 @@ function AppInner() {
                       setMenuOpen(false)
                       if (label === 'Ustawienia') setMobilePanel('settings')
                       else if (label === 'Profil') setMobilePanel('profile')
-                      else if (label === 'Postacie') setMobilePanel('postacie')
+                      else if (label === 'Postacie' || label === 'Sklep') setMobilePanel('postacie')
                       else toast('Wkrótce dostępne', 'info')
                     }}
                     className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all active:scale-[0.98]"
@@ -756,8 +814,8 @@ function AppInner() {
                     </span>
                     {label === 'Sklep' && (
                       <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full"
-                        style={{ background: houseTheme.primaryDim, color: houseTheme.primary, opacity: 0.6, fontFamily: "'Cinzel', serif", letterSpacing: '0.06em' }}>
-                        Wkrótce
+                        style={{ background: houseTheme.primaryDim, color: houseTheme.primary, opacity: 0.85, fontFamily: "'Cinzel', serif", letterSpacing: '0.06em' }}>
+                        Nowość
                       </span>
                     )}
                   </button>
@@ -809,6 +867,8 @@ function AppInner() {
           <PostacieOverlay
             onClose={() => setMobilePanel(null)}
             onSelectCharacter={(char) => setSelectedCharacter(char)}
+            onBuyAgent={handleBuyAgent}
+            owned={owned}
             theme={houseTheme}
           />
         )}

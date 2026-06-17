@@ -22,6 +22,14 @@ const SNAPE_STANDALONE_OPENINGS = [
   'Czekam. Nie z powodu uprzejmości — z powodu braku wyboru. Co cię tu przyprowadziło?',
 ]
 
+// Otwarcia rozmowy bez kontekstu wpisu (gdy wpis jest otwarty, otwarcie pobiera API).
+const STANDALONE_OPENINGS: Record<string, string> = {
+  dumbledore: 'Usiądź, proszę. Nie musimy się spieszyć — opowiedz mi, co dziś nosisz w sercu.',
+  hagrid: 'No chodź no tu, siadaj. Zaraz nastawię herbatę. Powiedz no — co ci leży na sercu?',
+  mcgonagall: 'Proszę usiąść. Zacznijmy od początku — co chciałbyś dziś uporządkować?',
+  lockhart: 'Ach, gość! Doskonale. Zanim opowiem ci o sobie coś naprawdę pouczającego — mów, co cię trapi?',
+}
+
 function getStandaloneOpening(characterId: string): string {
   if (characterId === 'snape') {
     return SNAPE_STANDALONE_OPENINGS[Math.floor(Math.random() * SNAPE_STANDALONE_OPENINGS.length)]
@@ -29,7 +37,7 @@ function getStandaloneOpening(characterId: string): string {
   if (characterId === 'hedwig') {
     return 'hu huu huuuu huu huuuu'
   }
-  return 'Słucham.'
+  return STANDALONE_OPENINGS[characterId] ?? 'Słucham.'
 }
 
 function charChatId(characterId: string, entryId?: string): string {

@@ -9,3 +9,13 @@ export function createUserClient(accessToken: string) {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }
+
+// Klient service-role — OMIJA RLS. Wyłącznie po stronie serwera (webhook Stripe,
+// który nie ma tokenu użytkownika). SUPABASE_SERVICE_ROLE_KEY nigdy nie trafia do klienta.
+export function createServiceClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) throw new Error('Brak SUPABASE_SERVICE_ROLE_KEY')
+  return createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}

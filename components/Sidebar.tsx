@@ -553,7 +553,7 @@ export function Sidebar({
             key={label}
             onClick={() => {
               if (label === 'Ustawienia' || label === 'Profil') setActiveNav(label)
-              else if (label === 'Postacie') onPostacie()
+              else if (label === 'Postacie' || label === 'Sklep') onPostacie()
               else toast('Wkrótce dostępne', 'info')
             }}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 active:scale-[0.98]"
@@ -570,9 +570,9 @@ export function Sidebar({
               {label === 'Sklep' && (
                 <span style={{
                   fontFamily: "'Cinzel', serif", fontSize: 7, letterSpacing: '0.06em',
-                  color: theme.primary, opacity: 0.4, background: theme.primaryDim,
+                  color: theme.primary, opacity: 0.85, background: theme.primaryDim,
                   padding: '1px 5px', borderRadius: 999,
-                }}>WKRÓTCE</span>
+                }}>NOWOŚĆ</span>
               )}
               <ChevronRight size={12} style={{ color: theme.primary, opacity: 0.25 }} />
             </div>
