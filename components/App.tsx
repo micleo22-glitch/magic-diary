@@ -884,6 +884,7 @@ function AppInner() {
           <PostacieOverlay
             onClose={() => setMobilePanel(null)}
             onSelectCharacter={(char) => setSelectedCharacter(char)}
+            onLockedSelect={() => setPostacieMode('shop')}
             onBuyAgents={handleBuyAgents}
             owned={owned}
             theme={houseTheme}

@@ -98,6 +98,8 @@ export const CHARACTERS: Character[] = [
 interface PostacieOverlayProps {
   onClose: () => void
   onSelectCharacter: (char: Character) => void
+  /** Klik w zablokowaną (płatną, nieposiadaną) postać w trybie 'browse' — przenosi do Sklepu. */
+  onLockedSelect?: (char: Character) => void
   /** Wywołane gdy user potwierdza zakup (jednego lub wielu agentów). */
   onBuyAgents?: (agentIds: string[]) => void
   /** Id płatnych agentów, które user już posiada (z tabeli entitlements). */
@@ -112,6 +114,7 @@ interface PostacieOverlayProps {
 export function PostacieOverlay({
   onClose,
   onSelectCharacter,
+  onLockedSelect,
   onBuyAgents,
   owned = [],
   theme = DEFAULT_THEME,
@@ -273,7 +276,7 @@ export function PostacieOverlay({
                   theme={theme}
                   locked={locked}
                   highlighted={highlighted}
-                  onSelect={() => { if (!locked) onSelectCharacter(char) }}
+                  onSelect={() => { if (locked) onLockedSelect?.(char); else onSelectCharacter(char) }}
                 />
               )
             })}
@@ -481,7 +484,7 @@ function BrowseCard({
       className="flex flex-col items-center transition-opacity duration-200 active:scale-[0.97] min-h-[44px]"
       style={{
         opacity: locked ? 0.62 : 1,
-        cursor: locked ? 'default' : 'pointer',
+        cursor: 'pointer',
         background: 'transparent',
         border: 'none',
         padding: 0,
