@@ -204,6 +204,52 @@ export function PostacieOverlay({
         }
       </p>
 
+      {/* Baner sukcesu po zakupie */}
+      <AnimatePresence>
+        {isShop && highlightAgents.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="mx-4 mb-1 px-4 py-3 rounded-2xl flex items-center gap-3"
+            style={{
+              background: 'rgba(46,173,110,0.12)',
+              border: '1px solid rgba(46,173,110,0.35)',
+            }}
+          >
+            <Check size={15} style={{ color: '#2EAD6E', flexShrink: 0 }} />
+            <div>
+              <p style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: '#2EAD6E', letterSpacing: '0.06em', fontWeight: 700 }}>
+                ODBLOKOWANO
+              </p>
+              <p style={{ fontFamily: "'Lora', serif", fontSize: 12, color: 'rgba(46,173,110,0.8)', marginTop: 1 }}>
+                {highlightAgents
+                  .map(id => CHARACTERS.find(c => c.id === id)?.name)
+                  .filter(Boolean)
+                  .join(', ')}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Baner testowy w sklepie */}
+      {isShop && highlightAgents.length === 0 && (
+        <div
+          className="mx-4 mb-1 px-4 py-2.5 rounded-2xl flex items-center gap-2.5"
+          style={{
+            background: 'rgba(201,153,63,0.08)',
+            border: '1px solid rgba(201,153,63,0.2)',
+          }}
+        >
+          <span style={{ fontSize: 14 }}>🃏</span>
+          <p style={{ fontFamily: "'Lora', serif", fontSize: 11, color: 'rgba(201,153,63,0.7)', fontStyle: 'italic', lineHeight: 1.5 }}>
+            Tryb testowy · karta <span style={{ fontFamily: 'monospace', fontStyle: 'normal', color: 'rgba(201,153,63,0.9)' }}>4242 4242 4242 4242</span> · data <span style={{ fontFamily: 'monospace', fontStyle: 'normal', color: 'rgba(201,153,63,0.9)' }}>12/34</span> · CVC <span style={{ fontFamily: 'monospace', fontStyle: 'normal', color: 'rgba(201,153,63,0.9)' }}>123</span>
+          </p>
+        </div>
+      )}
+
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-24">
         {isShop ? (
@@ -574,8 +620,6 @@ function PortraitFrame({
 }) {
   const borderColor = highlighted
     ? theme.primary
-    : inCart
-    ? `${theme.primary}CC`
     : 'transparent'
 
   const boxShadow = highlighted
