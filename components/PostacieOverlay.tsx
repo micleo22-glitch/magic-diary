@@ -618,14 +618,9 @@ function PortraitFrame({
   inCart: boolean
   highlighted: boolean
 }) {
-  const borderColor = highlighted
-    ? theme.primary
-    : 'transparent'
-
+  const borderColor = highlighted ? theme.primary : 'transparent'
   const boxShadow = highlighted
     ? `0 0 20px ${theme.primary}70, 0 0 40px ${theme.primary}30`
-    : inCart
-    ? `0 0 12px ${theme.primary}50`
     : 'none'
 
   if (char.photo) {
@@ -651,7 +646,11 @@ function PortraitFrame({
             width: '100%',
             height: char.id === 'hedwig' ? 'calc(100% - 5px)' : '100%',
             objectFit: 'cover',
-            filter: locked && !inCart && !highlighted ? 'brightness(0.35) saturate(0.4)' : 'none',
+            filter: locked && !inCart && !highlighted
+              ? 'brightness(0.35) saturate(0.4)'
+              : inCart
+              ? 'brightness(1.15) saturate(1.1)'
+              : 'none',
             transition: 'filter 0.3s',
           }}
         />
