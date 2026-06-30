@@ -14,6 +14,7 @@ dist/
 # Environment variables
 .env
 .env.local
+.env.local.*
 .env.development.local
 .env.test.local
 .env.production.local
@@ -30,6 +31,7 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+.claude/settings.local.json
 *.swp
 *.swo
 

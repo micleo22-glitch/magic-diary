@@ -18,95 +18,66 @@ async function triggerEmbedding(id: string): Promise<void> {
   } catch { /* ignore */ }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToEntry(row: any): Entry {
-  return {
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    mood: row.mood,
-    date: row.date,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    photos: row.photos ?? [],
-  }
+async function cmsFetch(path: string, init?: RequestInit) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token
+  if (!token) throw new Error('Not authenticated')
+
+  const res = await fetch(path, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...init?.headers,
+    },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error ?? 'CMS request failed')
+  return data
 }
 
 export async function getEntries(): Promise<Entry[]> {
-  const { data, error } = await supabase
-    .from('entries')
-    .select('*')
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-  if (error) { console.error(error); return [] }
-  return (data ?? []).map(rowToEntry)
+  try {
+    const data = await cmsFetch('/api/cms/entries')
+    return data.entries ?? []
+  } catch (error) {
+    console.error(error)
+    return []
+  }
 }
 
 export async function createEntry(
   data: Omit<Entry, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<Entry> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-
-  const now = new Date().toISOString()
-  const row = {
-    id: genId(),
-    title: data.title,
-    content: data.content,
-    mood: data.mood,
-    date: data.date,
-    photos: data.photos ?? [],
-    created_at: now,
-    updated_at: now,
-    user_id: user.id,
-  }
-  const { data: inserted, error } = await supabase
-    .from('entries')
-    .insert(row)
-    .select()
-    .single()
-  if (error) throw error
-  triggerEmbedding(inserted.id)
-  return rowToEntry(inserted)
+  const res = await cmsFetch('/api/cms/entries', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  if (res.entry?.id) triggerEmbedding(res.entry.id)
+  return res.entry
 }
 
 export async function updateEntry(
   id: string,
   changes: Partial<Omit<Entry, 'id' | 'createdAt'>>
 ): Promise<Entry | null> {
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-  if (changes.title !== undefined) patch.title = changes.title
-  if (changes.content !== undefined) patch.content = changes.content
-  if (changes.mood !== undefined) patch.mood = changes.mood
-  if (changes.date !== undefined) patch.date = changes.date
-  if (changes.photos !== undefined) patch.photos = changes.photos
-
-  const { data, error } = await supabase
-    .from('entries')
-    .update(patch)
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) { console.error(error); return null }
+  const res = await cmsFetch('/api/cms/entries', {
+    method: 'PUT',
+    body: JSON.stringify({ id, ...changes }),
+  })
   if (changes.title !== undefined || changes.content !== undefined) {
     triggerEmbedding(id)
   }
-  return rowToEntry(data)
+  return res.entry
 }
 
 export async function deleteEntry(id: string): Promise<void> {
-  const { error } = await supabase.from('entries').delete().eq('id', id)
-  if (error) console.error(error)
+  await cmsFetch(`/api/cms/entries?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
 export async function getEntry(id: string): Promise<Entry | undefined> {
-  const { data, error } = await supabase
-    .from('entries')
-    .select('*')
-    .eq('id', id)
-    .single()
-  if (error) return undefined
-  return rowToEntry(data)
+  const entries = await getEntries()
+  return entries.find(entry => entry.id === id)
 }
 
 // ── Chat messages ──────────────────────────────────────────────

@@ -1,0 +1,46 @@
+{
+  "kind": "collectionType",
+  "collectionName": "entries",
+  "info": {
+    "singularName": "entry",
+    "pluralName": "entries",
+    "displayName": "Entry",
+    "description": "Magic Diary entries mirrored from the app."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "text"
+    },
+    "mood": {
+      "type": "integer",
+      "min": 1,
+      "max": 5
+    },
+    "date": {
+      "type": "date",
+      "required": true
+    },
+    "photos": {
+      "type": "json"
+    },
+    "user_id": {
+      "type": "string",
+      "required": true
+    },
+    "app_entry_id": {
+      "type": "string",
+      "unique": true
+    },
+    "supabase_id": {
+      "type": "string",
+      "unique": true
+    }
+  }
+}

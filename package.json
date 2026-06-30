@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "seed:hybrid-search": "node scripts/seed-hybrid-search.mjs",
+    "copy:entries-to-seed-user": "node scripts/copy-entries-to-seed-user.mjs",
+    "fill:test-entries": "node scripts/fill-test-entries-to-today.mjs",
+    "backfill:strapi": "node scripts/backfill-strapi-from-supabase.mjs"
   },
   "dependencies": {
     "@ai-sdk/xai": "^3.0.93",

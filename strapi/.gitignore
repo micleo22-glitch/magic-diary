@@ -1,0 +1,10 @@
+.cache
+.tmp
+build
+dist
+node_modules
+.env
+.strapi
+exports
+*.sqlite
+*.sqlite3
