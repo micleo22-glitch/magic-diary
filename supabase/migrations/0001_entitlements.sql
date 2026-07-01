@@ -1,6 +1,6 @@
 -- Tydzień 4 — sklep z agentami.
--- `entitlements` = źródło prawdy "kto którego płatnego nauczyciela posiada".
--- Pisze WYŁĄCZNIE webhook Stripe (kluczem service-role, który omija RLS).
+-- `entitlements` = cache/RLS mirror dla Strapi, które jest źródłem prawdy.
+-- Pisze backend Next (kluczem service-role, który omija RLS) po zmianach ze Strapi/Stripe.
 -- User może tylko CZYTAĆ swoje wiersze — celowo BRAK polityki INSERT/UPDATE/DELETE
 -- dla zalogowanych, żeby nikt nie odblokował sobie agenta bez płatności.
 

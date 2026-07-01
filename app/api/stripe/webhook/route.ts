@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server'
 import Stripe from 'stripe'
 import { createServiceClient } from '@/lib/supabase-admin'
+import { upsertStrapiEntitlement } from '@/lib/strapi'
 
 // Stripe SDK wymaga Node (nie Edge); potrzebny też surowy body do weryfikacji podpisu.
 export const runtime = 'nodejs'
 
-// Webhook Stripe = ŹRÓDŁO PRAWDY o zakupie. Bez auth — bezpieczeństwo opiera się na
-// weryfikacji podpisu (STRIPE_WEBHOOK_SECRET). Na `checkout.session.completed` zapisuje
-// entitlement kluczem service-role (omija RLS). Idempotentny — Stripe ponawia próby.
+// Webhook Stripe potwierdza zakup. Strapi jest źródłem prawdy dla entitlementów;
+// Supabase jest tylko cachem/RLS-owym lustrem dla szybkiego odczytu w aplikacji.
 export async function POST(req: NextRequest) {
   const stripeKey = process.env.STRIPE_SECRET_KEY
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -43,13 +43,17 @@ export async function POST(req: NextRequest) {
         try {
           const svc = createServiceClient()
           for (const agentId of agentIds) {
+            const entitlement = {
+              user_id: userId,
+              agent_id: agentId,
+              source: 'stripe',
+              stripe_session_id: session.id,
+            }
+
+            await upsertStrapiEntitlement(entitlement)
+
             const { error } = await svc.from('entitlements').upsert(
-              {
-                user_id: userId,
-                agent_id: agentId,
-                source: 'stripe',
-                stripe_session_id: session.id,
-              },
+              entitlement,
               { onConflict: 'user_id,agent_id', ignoreDuplicates: true },
             )
             if (error) {

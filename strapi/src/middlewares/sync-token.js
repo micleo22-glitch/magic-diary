@@ -1,10 +1,13 @@
 'use strict';
 
-const SYNC_PATH = '/api/magic-diary/entries';
+const SYNC_PATHS = new Set([
+  '/api/magic-diary/entries',
+  '/api/magic-diary/entitlements',
+]);
 
 module.exports = () => {
   return async (ctx, next) => {
-    if (ctx.path !== SYNC_PATH || ctx.method === 'OPTIONS') {
+    if (!SYNC_PATHS.has(ctx.path) || ctx.method === 'OPTIONS') {
       return next();
     }
 

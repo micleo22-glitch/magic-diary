@@ -32,6 +32,18 @@ function toSupabaseRow(entry: Record<string, any>) {
   }
 }
 
+function toEntitlementRow(entitlement: Record<string, any>) {
+  if (!entitlement.user_id) throw new Error('Missing user_id')
+  if (!entitlement.agent_id) throw new Error('Missing agent_id')
+
+  return {
+    user_id: entitlement.user_id,
+    agent_id: entitlement.agent_id,
+    source: entitlement.source ?? 'stripe',
+    stripe_session_id: entitlement.stripe_session_id ?? null,
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!assertWebhookToken(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -40,13 +52,42 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null) as {
     event?: string
     entry?: Record<string, any>
+    entitlement?: Record<string, any>
   } | null
 
-  if (!body?.event || !body.entry) {
-    return NextResponse.json({ error: 'event and entry are required' }, { status: 400 })
+  if (!body?.event) {
+    return NextResponse.json({ error: 'event is required' }, { status: 400 })
   }
 
   const db = createServiceClient()
+
+  if (body.event.startsWith('entitlement.')) {
+    if (!body.entitlement) {
+      return NextResponse.json({ error: 'entitlement is required' }, { status: 400 })
+    }
+
+    const row = toEntitlementRow(body.entitlement)
+
+    if (body.event === 'entitlement.delete') {
+      const { error } = await db
+        .from('entitlements')
+        .delete()
+        .eq('user_id', row.user_id)
+        .eq('agent_id', row.agent_id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true })
+    }
+
+    const { error } = await db.from('entitlements').upsert(row, { onConflict: 'user_id,agent_id' })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ ok: true })
+  }
+
+  if (!body.entry) {
+    return NextResponse.json({ error: 'entry is required' }, { status: 400 })
+  }
+
   const row = toSupabaseRow(body.entry)
 
   if (body.event === 'entry.delete') {

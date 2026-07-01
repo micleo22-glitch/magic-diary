@@ -5,7 +5,7 @@
 //   • stripePriceId             → tu, jako referencja do ceny w Stripe.
 //   • OSOBOWOŚĆ / PROMPT        → app/api/chat/route.ts (mapa POSTACIE).
 //   • METADANE WIZUALNE         → components/PostacieOverlay.tsx (CHARACTERS).
-//   • KTO CO KUPIŁ              → Supabase, tabela `entitlements`.
+//   • KTO CO KUPIŁ              → Strapi `entitlements` (Supabase jest cachem/RLS mirror).
 
 export interface PaidAgentMeta {
   /** Stripe Price ID (price_XXXX) — używany w Checkout Session. */

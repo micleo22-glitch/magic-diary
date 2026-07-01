@@ -5,6 +5,17 @@ type StrapiApiEntry = Entry & {
   user_id?: string
 }
 
+export interface StrapiEntitlement {
+  id?: number | string
+  documentId?: string
+  user_id: string
+  agent_id: string
+  source?: string
+  stripe_session_id?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
 function getStrapiConfig(): { url: string; token: string } | null {
   const url = process.env.STRAPI_URL?.replace(/\/$/, '')
   const token = process.env.STRAPI_SYNC_TOKEN
@@ -90,4 +101,29 @@ export async function deleteStrapiEntry(supabaseId: string): Promise<void> {
       },
     }),
   })
+}
+
+export async function getStrapiEntitlements(userId: string): Promise<StrapiEntitlement[]> {
+  const data = await strapiFetch(`/api/magic-diary/entitlements?user_id=${encodeURIComponent(userId)}`)
+  if (!data) throw new Error('Strapi entitlements are not configured')
+  return data?.data ?? []
+}
+
+export async function getStrapiEntitlement(userId: string, agentId: string): Promise<StrapiEntitlement | null> {
+  const params = new URLSearchParams({ user_id: userId, agent_id: agentId })
+  const data = await strapiFetch(`/api/magic-diary/entitlements?${params.toString()}`)
+  if (!data) throw new Error('Strapi entitlements are not configured')
+  return data?.data?.[0] ?? null
+}
+
+export async function upsertStrapiEntitlement(entitlement: StrapiEntitlement): Promise<StrapiEntitlement | null> {
+  const data = await strapiFetch('/api/magic-diary/entitlements', {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'upsert',
+      entitlement,
+    }),
+  })
+  if (!data) throw new Error('Strapi entitlements are not configured')
+  return data?.entitlement ?? null
 }

@@ -44,7 +44,12 @@ export async function POST(req: NextRequest) {
   // Walidacja każdego agenta
   for (const id of agentIds) {
     if (!isPaidAgent(id)) return jsonError(`Nieznany lub darmowy nauczyciel: ${id}.`, 400)
-    if (await ownsAgent(db, id)) return jsonError(`Masz już tego nauczyciela: ${id}.`, 409)
+    try {
+      if (await ownsAgent(user.id, id)) return jsonError(`Masz już tego nauczyciela: ${id}.`, 409)
+    } catch (error) {
+      console.error('[checkout] Strapi entitlement check:', error)
+      return jsonError('Nie udało się potwierdzić stanu zakupów.', 503)
+    }
   }
 
   const stripeKey = process.env.STRIPE_SECRET_KEY

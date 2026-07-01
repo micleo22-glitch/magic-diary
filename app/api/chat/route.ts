@@ -347,10 +347,24 @@ export async function POST(req: NextRequest) {
     return jsonError('Zbyt wiele wiadomości w krótkim czasie — odczekaj chwilę.', 429)
   }
 
+  const teacherId = typeof teacher === 'string' ? teacher : DEFAULT_TEACHER
+  if (!POSTACIE[teacherId]) {
+    return jsonError('Nieznany nauczyciel.', 400)
+  }
+
   // ── Gating płatnych nauczycieli (po stronie serwera, nie tylko UI) ────────────
   // Bez tego user mógłby wysłać teacher:'dumbledore' wprost do API i ominąć zakup.
-  if (isPaidAgent(teacher) && !(await ownsAgent(db, teacher))) {
-    return jsonError('Ten nauczyciel jest zablokowany — kup go w Sklepie, aby rozmawiać.', 403)
+  if (isPaidAgent(teacherId)) {
+    let owned: boolean
+    try {
+      owned = await ownsAgent(user.id, teacherId)
+    } catch (error) {
+      console.error('[chat] Strapi entitlement check:', error)
+      return jsonError('Nie udało się potwierdzić zakupu nauczyciela.', 503)
+    }
+    if (!owned) {
+      return jsonError('Ten nauczyciel jest zablokowany — kup go w Sklepie, aby rozmawiać.', 403)
+    }
   }
 
   const apiKey = process.env.XAI_API_KEY
@@ -358,7 +372,7 @@ export async function POST(req: NextRequest) {
     return jsonError('Brak klucza API', 500)
   }
 
-  const persona = POSTACIE[teacher] ?? POSTACIE[DEFAULT_TEACHER]
+  const persona = POSTACIE[teacherId]
 
   // Build system prompt — current entry injected immediately
   let systemContent = persona.system

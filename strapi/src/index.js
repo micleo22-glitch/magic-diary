@@ -12,7 +12,7 @@ async function notifyNext(strapi, event, result) {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ event, entry: result }),
+      body: JSON.stringify({ event, [event.startsWith('entitlement.') ? 'entitlement' : 'entry']: result }),
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) {
@@ -53,6 +53,22 @@ module.exports = {
 
       async afterDelete(event) {
         await notifyNext(strapi, 'entry.delete', event.result);
+      },
+    });
+
+    strapi.db.lifecycles.subscribe({
+      models: ['api::entitlement.entitlement'],
+
+      async afterCreate(event) {
+        await notifyNext(strapi, 'entitlement.create', event.result);
+      },
+
+      async afterUpdate(event) {
+        await notifyNext(strapi, 'entitlement.update', event.result);
+      },
+
+      async afterDelete(event) {
+        await notifyNext(strapi, 'entitlement.delete', event.result);
       },
     });
   },

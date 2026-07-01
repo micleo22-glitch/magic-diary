@@ -1,0 +1,31 @@
+{
+  "kind": "collectionType",
+  "collectionName": "entitlements",
+  "info": {
+    "singularName": "entitlement",
+    "pluralName": "entitlements",
+    "displayName": "Entitlement",
+    "description": "Paid teacher unlocks. Strapi is the source of truth."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "user_id": {
+      "type": "string",
+      "required": true
+    },
+    "agent_id": {
+      "type": "string",
+      "required": true
+    },
+    "source": {
+      "type": "string",
+      "default": "stripe"
+    },
+    "stripe_session_id": {
+      "type": "string"
+    }
+  }
+}
