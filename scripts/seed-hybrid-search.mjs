@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
 import { existsSync, readFileSync } from 'node:fs'
-import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
+import { createClient } from '@supabase/supabase-js'
 
 const DEFAULT_COUNT = 350
+const DEFAULT_BATCH_SIZE = 50
 const EMBEDDING_MODEL = 'text-embedding-3-small'
 
 loadEnvFile('.env.local')
@@ -14,7 +14,8 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const openaiApiKey = process.env.OPENAI_API_KEY
 const userId = process.env.SEED_USER_ID
 const count = parsePositiveInt(process.env.SEED_ENTRIES_COUNT, DEFAULT_COUNT)
-const batchSize = parsePositiveInt(process.env.SEED_BATCH_SIZE, 50)
+const batchSize = parsePositiveInt(process.env.SEED_BATCH_SIZE, DEFAULT_BATCH_SIZE)
+const seedRunId = process.env.SEED_RUN_ID || 'default'
 
 if (!supabaseUrl) die('Missing NEXT_PUBLIC_SUPABASE_URL')
 if (!serviceRoleKey) die('Missing SUPABASE_SERVICE_ROLE_KEY')
@@ -26,8 +27,8 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  const entries = buildEntries(count, userId)
-  let inserted = 0
+  const entries = buildEntries(count, userId, seedRunId)
+  let seeded = 0
 
   for (let index = 0; index < entries.length; index += batchSize) {
     const batch = entries.slice(index, index + batchSize)
@@ -40,11 +41,11 @@ async function main() {
     const { error } = await supabase.from('entries').upsert(rows, { onConflict: 'id' })
     if (error) die(`Supabase upsert failed: ${error.message}`)
 
-    inserted += rows.length
-    console.log(`Seeded ${inserted}/${entries.length} entries`)
+    seeded += rows.length
+    console.log(`Seeded ${seeded}/${entries.length} entries`)
   }
 
-  console.log(`Done. Seeded ${inserted} entries for user ${userId}.`)
+  console.log(`Done. Seeded ${seeded} entries for user ${userId}.`)
 }
 
 function loadEnvFile(fileName) {
@@ -128,29 +129,31 @@ async function generateEmbeddings(inputs) {
   return embeddings
 }
 
-function buildEntries(total, ownerId) {
-  const usedDates = new Set()
+function buildEntries(total, ownerId, runId) {
   const rows = []
   const today = startOfDay(new Date())
+  const ownerSlug = ownerId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
+  const runSlug = runId.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 24) || 'default'
 
   for (let index = 0; index < total; index++) {
-    const date = pickDate(today, index, usedDates)
+    const date = addDays(today, -pickDayOffset(index))
     const mood = pickMood(index, date)
     const theme = themes[index % themes.length]
     const detail = details[(index * 7 + mood) % details.length]
     const reflection = reflections[(index * 11 + mood) % reflections.length]
-    const title = `${theme.title}: ${formatDisplayDate(date)}`
+    const place = places[(index * 5 + mood) % places.length]
+    const weather = weatherNotes[(index * 3 + mood) % weatherNotes.length]
     const isoDate = toIsoDate(date)
-    const createdAt = new Date(date.getTime() + randomHour(index)).toISOString()
+    const createdAt = new Date(date.getTime() + timeOfDay(index)).toISOString()
     const updatedAt = new Date(new Date(createdAt).getTime() + 1000 * 60 * ((index % 180) + 5)).toISOString()
 
     rows.push({
-      id: `seed-hybrid-${isoDate}-${randomUUID()}`,
-      title,
+      id: `seed-hybrid-${runSlug}-${ownerSlug}-${String(index + 1).padStart(4, '0')}`,
+      title: `${theme.title} - ${formatDisplayDate(date)}`,
       content: [
         `<p>${theme.opening[mood - 1]}</p>`,
-        `<p>${detail}</p>`,
-        `<p>${reflection}</p>`,
+        `<p>${detail} ${weather}</p>`,
+        `<p>Miejsce: ${place}. ${reflection}</p>`,
       ].join(''),
       mood,
       date: isoDate,
@@ -165,25 +168,16 @@ function buildEntries(total, ownerId) {
   return rows.sort((a, b) => a.date.localeCompare(b.date))
 }
 
-function pickDate(today, index, usedDates) {
-  const maxDaysBack = Math.max(540, index + 30)
-  let offset = (index * 37 + Math.floor(index / 7) * 11) % maxDaysBack
-  let date = addDays(today, -offset)
-
-  while (usedDates.has(toIsoDate(date))) {
-    offset += 1
-    date = addDays(today, -offset)
-  }
-
-  usedDates.add(toIsoDate(date))
-  return date
+function pickDayOffset(index) {
+  const yearWindow = 540
+  return (index * 17 + Math.floor(index / 9) * 29 + (index % 6) * 3) % yearWindow
 }
 
 function pickMood(index, date) {
   const day = date.getDay()
+  if (index % 23 === 0) return 1
+  if (index % 11 === 0) return 2
   if (day === 5 || day === 6) return 4 + (index % 2)
-  if (index % 13 === 0) return 1
-  if (index % 7 === 0) return 2
   if (index % 5 === 0) return 3
   return 3 + (index % 3)
 }
@@ -210,7 +204,7 @@ function formatDisplayDate(date) {
   }).format(date)
 }
 
-function randomHour(index) {
+function timeOfDay(index) {
   const hour = 7 + (index * 5) % 15
   const minute = (index * 17) % 60
   return 1000 * 60 * (hour * 60 + minute)
@@ -218,91 +212,138 @@ function randomHour(index) {
 
 const themes = [
   {
-    title: 'Poranek z kawą',
+    title: 'Poranek z kawa',
     opening: [
-      'Obudziłem się ciężko i przez dłuższą chwilę zbierałem myśli przy zimnej kawie.',
-      'Poranek był szorstki, ale udało mi się zrobić pierwszą rzecz z listy bez odkładania.',
-      'Dzień zaczął się spokojnie, z kawą i krótkim planem zapisanym na kartce.',
-      'Od rana miałem wrażenie, że wszystko jest na swoim miejscu.',
-      'Wstałem wcześnie i złapałem ten rzadki moment ciszy, zanim miasto ruszyło pełną parą.',
+      'Obudzilem sie ciezko i przez dluzsza chwile zbieralem mysli przy zimnej kawie.',
+      'Poranek byl szorstki, ale udalo mi sie zrobic pierwsza rzecz z listy bez odkladania.',
+      'Dzien zaczal sie spokojnie, z kawa i krotkim planem zapisanym na kartce.',
+      'Od rana mialem wrazenie, ze wszystko jest na swoim miejscu.',
+      'Wstalem wczesnie i zlapalem ten rzadki moment ciszy, zanim miasto ruszylo pelna para.',
     ],
   },
   {
     title: 'Praca nad projektem',
     opening: [
-      'Projekt dziś ciążył mi bardziej niż zwykle i trudno było znaleźć sensowny punkt zaczepienia.',
-      'Utknąłem na drobiazgu, który zjadł za dużo energii, ale pod koniec dnia ruszyło.',
-      'Zrobiłem solidny kawałek pracy, bez fajerwerków, za to równo i konkretnie.',
-      'Kilka decyzji projektowych wreszcie się ułożyło i od razu zrobiło się lżej.',
-      'Miałem świetny rytm pracy, taki z rzadkich dni, kiedy myśli układają się same.',
+      'Projekt dzis ciazyl mi bardziej niz zwykle i trudno bylo znalezc sensowny punkt zaczepienia.',
+      'Utknalem na drobiazgu, ktory zjadl za duzo energii, ale pod koniec dnia ruszylo.',
+      'Zrobilem solidny kawalek pracy, bez fajerwerkow, za to rowno i konkretnie.',
+      'Kilka decyzji projektowych wreszcie sie ulozylo i od razu zrobilo sie lzej.',
+      'Mialem swietny rytm pracy, taki z rzadkich dni, kiedy mysli ukladaja sie same.',
     ],
   },
   {
-    title: 'Spacer po mieście',
+    title: 'Spacer po miescie',
     opening: [
-      'Wyszedłem tylko na chwilę, ale szare ulice pasowały dziś do nastroju aż za dobrze.',
-      'Spacer pomógł mi przewietrzyć głowę, choć wróciłem nadal trochę przygaszony.',
-      'Przeszedłem dłuższą trasą niż zwykle i zauważyłem kilka miejsc, które zwykle mijam bez patrzenia.',
-      'Miasto było dziś przyjemnie żywe, a ja poczułem, że odzyskuję tempo.',
-      'Wieczorny spacer okazał się najlepszą częścią dnia, z ciepłym światłem w oknach i lekką głową.',
+      'Wyszedlem tylko na chwile, ale szare ulice pasowaly dzis do nastroju az za dobrze.',
+      'Spacer pomogl mi przewietrzyc glowe, choc wrocilem nadal troche przygaszony.',
+      'Przeszedlem dluzsza trasa niz zwykle i zauwazylem kilka miejsc, ktore zwykle mijam bez patrzenia.',
+      'Miasto bylo dzis przyjemnie zywe, a ja poczulem, ze odzyskuje tempo.',
+      'Wieczorny spacer okazal sie najlepsza czescia dnia, z cieplym swiatlem w oknach i lekka glowa.',
     ],
   },
   {
     title: 'Rozmowa',
     opening: [
-      'Rozmowa, której unikałem, wróciła dziś ze zdwojoną siłą i zostawiła mnie zmęczonego.',
-      'Powiedziałem trochę mniej, niż chciałem, ale przynajmniej nie uciekłem od tematu.',
-      'Spotkanie było zwyczajne, a jednak potrzebne, bo uporządkowało kilka drobnych napięć.',
-      'Dobra rozmowa przywróciła mi poczucie, że nie muszę wszystkiego dźwigać sam.',
-      'Usłyszałem dziś coś, co długo zostanie ze mną w dobrym sensie.',
+      'Rozmowa, ktorej unikalem, wrocila dzis ze zdwojona sila i zostawila mnie zmeczonego.',
+      'Powiedzialem troche mniej, niz chcialem, ale przynajmniej nie ucieklem od tematu.',
+      'Spotkanie bylo zwyczajne, a jednak potrzebne, bo uporzadkowalo kilka drobnych napiec.',
+      'Dobra rozmowa przywrocila mi poczucie, ze nie musze wszystkiego dzwigac sam.',
+      'Uslyszalem dzis cos, co dlugo zostanie ze mna w dobrym sensie.',
     ],
   },
   {
-    title: 'Domowy wieczór',
+    title: 'Domowy wieczor',
     opening: [
-      'Wieczorem opadło ze mnie zmęczenie i wszystko wydawało się zbyt głośne.',
-      'Zrobiłem minimum: kolacja, pranie, kilka wiadomości, potem cisza.',
-      'Domowy wieczór był prosty i potrzebny, bez wielkich planów.',
-      'Udało mi się ugotować coś dobrego i uporządkować kuchnię, co dziwnie poprawiło humor.',
-      'Wieczór był miękki i spokojny, z muzyką w tle i poczuciem dobrze domkniętego dnia.',
+      'Wieczorem opadlo ze mnie zmeczenie i wszystko wydawalo sie zbyt glosne.',
+      'Zrobilem minimum: kolacja, pranie, kilka wiadomosci, potem cisza.',
+      'Domowy wieczor byl prosty i potrzebny, bez wielkich planow.',
+      'Udalo mi sie ugotowac cos dobrego i uporzadkowac kuchnie, co dziwnie poprawilo humor.',
+      'Wieczor byl miekki i spokojny, z muzyka w tle i poczuciem dobrze domknietego dnia.',
     ],
   },
   {
     title: 'Nauka i notatki',
     opening: [
-      'Czytanie szło dziś wolno, każde zdanie wymagało drugiego podejścia.',
-      'Nie wszystko zrozumiałem od razu, ale notatki zaczęły łapać kształt.',
-      'Przerobiłem zaplanowany materiał i zostawiłem sobie jasne punkty na jutro.',
-      'Nauka dała mi dziś satysfakcję, zwłaszcza kiedy trudny fragment wreszcie kliknął.',
-      'Miałem poczucie prawdziwego postępu i aż chciało się dopisać kolejne przykłady.',
+      'Czytanie szlo dzis wolno, kazde zdanie wymagalo drugiego podejscia.',
+      'Nie wszystko zrozumialem od razu, ale notatki zaczely lapac ksztalt.',
+      'Przerobilem zaplanowany material i zostawilem sobie jasne punkty na jutro.',
+      'Nauka dala mi dzis satysfakcje, zwlaszcza kiedy trudny fragment wreszcie kliknal.',
+      'Mialem poczucie prawdziwego postepu i az chcialo sie dopisac kolejne przyklady.',
+    ],
+  },
+  {
+    title: 'Rodzinne sprawy',
+    opening: [
+      'Rodzinny temat wrocil dzis w najmniej wygodnym momencie i trudno bylo mi zachowac spokoj.',
+      'Nie wszystko poszlo gladko, ale przynajmniej nazwalismy rzeczy po imieniu.',
+      'Dzien mial kilka malych domowych obowiazkow, ktore dobrze bylo odhaczyc.',
+      'Krotka rozmowa z bliska osoba dala mi wiecej otuchy, niz sie spodziewalem.',
+      'Wieczorem poczulem wdziecznosc za zwykle, cieple gesty, ktore latwo przeoczyc.',
+    ],
+  },
+  {
+    title: 'Zdrowie i energia',
+    opening: [
+      'Cialo od rana dawalo znac, ze limit zostal przekroczony juz wczoraj.',
+      'Mialem mniej energii niz chcialem, ale udalo mi sie nie dokladac sobie presji.',
+      'Zrobilem spokojny trening i pilnowalem jedzenia, bez wielkich deklaracji.',
+      'Ruch dobrze mi zrobil i przez reszte dnia latwiej bylo zlapac rownowage.',
+      'Czulem sie lekko, jakby organizm wreszcie dostal to, o co prosil od tygodni.',
     ],
   },
 ]
 
 const details = [
-  'Najbardziej zapamiętałem mały szczegół: zapach deszczu na chodniku i światło odbite w szybie autobusu.',
-  'Po południu zrobiłem listę trzech spraw, które realnie da się zamknąć, zamiast udawać, że ogarnę wszystko.',
-  'W tle cały czas wracała myśl o zaległej wiadomości, więc w końcu odpisałem krótko i uczciwie.',
-  'Zjadłem późny obiad i dopiero wtedy zauważyłem, jak bardzo byłem przebodźcowany.',
-  'Najlepiej zadziałała przerwa bez telefonu, tylko dziesięć minut patrzenia przez okno.',
-  'Ktoś powiedział mi jedno życzliwe zdanie i zupełnie zmieniło to temperaturę dnia.',
-  'Plan dnia rozjechał się po południu, ale kilka mniejszych rzeczy udało się uratować.',
-  'Wieczorem wróciłem do notatek i dopisałem kilka obserwacji, których rano jeszcze nie umiałem nazwać.',
-  'Zaskoczyło mnie, jak dużo energii daje zwykłe uporządkowanie biurka.',
-  'Przez chwilę miałem ochotę wszystko odłożyć, ale pomogło rozbicie zadania na naprawdę małe kroki.',
+  'Najbardziej zapamietalem maly szczegol: zapach deszczu na chodniku i swiatlo odbite w szybie autobusu.',
+  'Po poludniu zrobilem liste trzech spraw, ktore realnie da sie zamknac, zamiast udawac, ze ogarne wszystko.',
+  'W tle caly czas wracala mysl o zaleglej wiadomosci, wiec w koncu odpisalem krotko i uczciwie.',
+  'Zjadlem pozny obiad i dopiero wtedy zauwazylem, jak bardzo bylem przebodzcowany.',
+  'Najlepiej zadzialala przerwa bez telefonu, tylko dziesiec minut patrzenia przez okno.',
+  'Ktos powiedzial mi jedno zyczliwe zdanie i zupelnie zmienilo to temperature dnia.',
+  'Plan dnia rozjechal sie po poludniu, ale kilka mniejszych rzeczy udalo sie uratowac.',
+  'Wieczorem wrocilem do notatek i dopisalem kilka obserwacji, ktorych rano jeszcze nie umialem nazwac.',
+  'Zaskoczylo mnie, jak duzo energii daje zwykle uporzadkowanie biurka.',
+  'Przez chwile mialem ochote wszystko odlozyc, ale pomoglo rozbicie zadania na naprawde male kroki.',
+  'W kalendarzu zostalo kilka luk, ktore okazaly sie cenniejsze niz kolejny ambitny plan.',
+  'Najtrudniejsze bylo przyznac, ze potrzebuje pomocy, zanim frustracja zrobi sie zbyt duza.',
+  'Po drodze kupilem drobiazg, ktory nie byl potrzebny, ale poprawil mi humor bardziej niz powinien.',
+  'W pracy rozmowy byly konkretne i krotkie, dzieki czemu zostalo troche miejsca na myslenie.',
+  'Pod koniec dnia dopadlo mnie zmeczenie, ale tym razem nie pomylilem go z porazka.',
 ]
 
 const reflections = [
-  'Na jutro zostawiam sobie jedną prostą intencję: zacząć spokojnie, bez gonienia własnych oczekiwań.',
-  'Widzę, że kiedy zapisuję rzeczy od razu, mniej mnie potem straszą w głowie.',
-  'To był dzień bez wielkich przełomów, ale z kilkoma uczciwymi krokami do przodu.',
-  'Chcę częściej pamiętać, że odpoczynek nie jest nagrodą za perfekcyjnie wykonany plan.',
-  'Najważniejsze było dziś nie tempo, tylko to, że wróciłem do siebie po małym chaosie.',
-  'Dobrze mieć dowód, że nawet gorszy nastrój nie musi decydować o całym dniu.',
-  'Zapisuję to, bo za tydzień mogę już nie pamiętać, jak bardzo potrzebny był ten spokój.',
-  'Jutro spróbuję zacząć od rzeczy, którą zwykle zostawiam na koniec.',
-  'Ciało wyraźnie prosi o sen, więc nie będę przeciągać wieczoru bez sensu.',
-  'Mam poczucie, że coś we mnie powoli się porządkuje, nawet jeśli z zewnątrz wygląda to zwyczajnie.',
+  'Na jutro zostawiam sobie jedna prosta intencje: zaczac spokojnie, bez gonienia wlasnych oczekiwan.',
+  'Widze, ze kiedy zapisuje rzeczy od razu, mniej mnie potem strasza w glowie.',
+  'To byl dzien bez wielkich przelomow, ale z kilkoma uczciwymi krokami do przodu.',
+  'Chce czesciej pamietac, ze odpoczynek nie jest nagroda za perfekcyjnie wykonany plan.',
+  'Najwazniejsze bylo dzis nie tempo, tylko to, ze wrocilem do siebie po malym chaosie.',
+  'Dobrze miec dowod, ze nawet gorszy nastroj nie musi decydowac o calym dniu.',
+  'Zapisuje to, bo za tydzien moge juz nie pamietac, jak bardzo potrzebny byl ten spokoj.',
+  'Jutro sprobuje zaczac od rzeczy, ktora zwykle zostawiam na koniec.',
+  'Cialo wyraznie prosi o sen, wiec nie bede przeciagac wieczoru bez sensu.',
+  'Mam poczucie, ze cos we mnie powoli sie porzadkuje, nawet jesli z zewnatrz wyglada to zwyczajnie.',
+  'Dobrze zadzialalo nazwanie emocji jednym zdaniem zamiast budowania calej opowiesci.',
+  'Nie musze robic z tego lekcji zycia, wystarczy zapamietac, co pomoglo.',
+]
+
+const places = [
+  'kuchenny stol',
+  'biurko przy oknie',
+  'tramwaj w drodze do centrum',
+  'park za osiedlem',
+  'mala kawiarnia obok pracy',
+  'kanapa w salonie',
+  'biblioteka',
+  'dlugi chodnik przy rzece',
+]
+
+const weatherNotes = [
+  'Za oknem bylo pochmurno, ale bez tej ciezkiej szarosci.',
+  'Deszcz kilka razy przerywal plany i wymuszal wolniejsze tempo.',
+  'Slonce pojawilo sie dopiero pod wieczor i od razu zmienilo nastroj.',
+  'Powietrze bylo duszne, przez co wszystko wydawalo sie bardziej meczace.',
+  'Chlodny wiatr pomogl mi sie obudzic lepiej niz druga kawa.',
+  'Bylo cicho i jasno, prawie jak w pierwszy dzien po dlugiej przerwie.',
 ]
 
 main().catch(error => die(error instanceof Error ? error.message : String(error)))
