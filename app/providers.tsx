@@ -25,6 +25,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
       ui_host: 'https://eu.posthog.com',
       capture_pageview: 'history_change',
       capture_pageleave: true,
+      capture_exceptions: true,
     })
 
     posthogInitialized = true
