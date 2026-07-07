@@ -319,6 +319,28 @@ Lockhart: Wspaniale! Błysk, moment chwały — niemal jak wtedy, gdy odebrałem
 
 const DEFAULT_TEACHER = 'snape'
 
+const TOOL_PRIVACY_RULE = `
+
+---
+TECHNICZNE ZASADY NARZEDZI:
+Jesli korzystasz z narzedzia search_diary, rob to niewidocznie dla uzytkownika. Nigdy nie opisuj swoich krokow, planu, powodow wywolania narzedzia ani decyzji typu "musze uzyc narzedzia". Uzytkownik ma widziec wylacznie finalna odpowiedz postaci po polsku.`
+
+function normalizeForLookup(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function shouldSearchDiaryFirst(messages: Array<{ role: string; text: string }>, entry: unknown): boolean {
+  if (entry) return true
+
+  const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.text ?? ''
+  const text = normalizeForLookup(lastUserMessage)
+
+  return /\b(\d{4}-\d{2}-\d{2}|wczoraj|dzis|dzisiaj|jutro|ostatnio|kiedys|wpis|pamietam|mama|tata|szef|praca|szkola|osoba|spotkanie|smut|zle|lek|stres|strach|samot|rado|duma|zlosc|gniew|wstyd|poraz|sukces)\b/.test(text)
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const {
@@ -373,9 +395,11 @@ export async function POST(req: NextRequest) {
   }
 
   const persona = POSTACIE[teacherId]
+  const parsedMessages = Array.isArray(messages) ? messages as Array<{ role: string; text: string }> : []
+  const forceDiarySearchFirst = teacherId !== 'hedwig' && shouldSearchDiaryFirst(parsedMessages, entry)
 
   // Build system prompt — current entry injected immediately
-  let systemContent = persona.system
+  let systemContent = persona.system + TOOL_PRIVACY_RULE
   if (entry) {
     const contentText = stripHtml(entry.content ?? '').slice(0, 2000)
     const moodText = entry.mood ? MOOD_LABEL[entry.mood as number] : null
@@ -410,7 +434,7 @@ export async function POST(req: NextRequest) {
   const result = streamText({
     model: xai('grok-4.3'),
     system: systemContent,
-    messages: messages.map((m: { role: string; text: string }) => ({
+    messages: parsedMessages.map((m: { role: string; text: string }) => ({
       role: m.role as 'user' | 'assistant',
       content: m.text,
     })),
@@ -429,6 +453,12 @@ export async function POST(req: NextRequest) {
           return JSON.stringify(results)
         },
       }),
+    },
+    prepareStep: ({ stepNumber }) => {
+      if (forceDiarySearchFirst && stepNumber === 0) {
+        return { toolChoice: { type: 'tool', toolName: 'search_diary' } }
+      }
+      return { toolChoice: 'auto' }
     },
     maxOutputTokens: 350,
     temperature: 0.85,
